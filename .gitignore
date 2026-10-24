@@ -1,0 +1,9 @@
+.tools/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.tar
+assets/apps/*.jpeg
+assets/apps/*.jpg
+assets/apps/*.png

@@ -1,0 +1,3 @@
+#!/bin/sh
+[ ! -e /var/luna/preferences/webosbrew_failsafe ] || exit 0
+sh /var/lib/webosbrew/wiios-privacy/apply.sh >> /var/lib/webosbrew/wiios-privacy/privacy.log 2>&1

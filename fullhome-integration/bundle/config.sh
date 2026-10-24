@@ -1,0 +1,11 @@
+TOKEN=diag-3e891511b377
+EXPECTED_BASE=/var/lib/webosbrew/wiios-fullhome-diag/diag-3e891511b377
+DEADLINE=0
+TARGET_1=/usr/palm/applications/com.webos.app.fullhome/qml/main.qml
+FILE_1=main.qml
+ORIGINAL_1=1b90a8282283caf27c140aed31c429994f6d4341cd67f443d655c00b5edba1c8
+PATCHED_1=ac7901e140f8ffc8f2c0c123b96bd4b9f406116f4936dbf876a37b01084943a5
+TARGET_2=/usr/palm/applications/com.webos.app.fullhome/qml/UserInterfaceLayer/UIController.qml
+FILE_2=UIController.qml
+ORIGINAL_2=50f8b5fefa20be20ab0d0cc6ba44010749e4e87d7b05ab2b030bcdf3e9b4739f
+PATCHED_2=ccc1090479b4918742fea920ad2298258bb9c6145d072260fbc956bab270f775

@@ -1,0 +1,10 @@
+eic.ads.lgtvcommon.com
+nl.ad.lgsmartad.com
+nl.info.lgsmartad.com
+cdpbeacon.lgtvcommon.com
+ads.lgtvcommon.com
+homeprv.lgtvcommon.com
+eic.nudge.lgtvcommon.com
+recommend.lgtvcommon.com
+eic.wiseconfig.lgtvcommon.com
+eic.tv.wiselg.com

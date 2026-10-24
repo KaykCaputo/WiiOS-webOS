@@ -1,0 +1,5 @@
+#!/bin/sh
+BASE=/var/lib/webosbrew/wiios-fullhome-diag/diag-3e891511b377
+[ ! -e /var/luna/preferences/webosbrew_failsafe ] || exit 0
+nohup sh "$BASE/boot.sh" >> /var/lib/webosbrew/wiios-fullhome-permanent.log 2>&1 < /dev/null &
+exit 0

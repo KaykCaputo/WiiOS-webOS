@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WiiOS · Wii Menu</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="stage">
+    <main id="home" aria-label="Wii Menu">
+      <div id="grid-viewport"><div id="menu" aria-label="Channels"></div></div>
+      <button class="page-arrow previous" id="prev" aria-label="Previous page"><svg viewBox="0 0 60 80" aria-hidden="true"><defs><linearGradient id="arrow-prev" x2="1" y2="1"><stop stop-color="#efffff"/><stop offset="1" stop-color="#43bff8"/></linearGradient></defs><path d="M13 8 Q12 5 16 8 L49 38 Q51 40 49 42 L16 72 Q12 75 13 71 L20 40 Z" fill="url(#arrow-prev)" stroke="#328ec1" stroke-width="2"/></svg></button>
+      <button class="page-arrow next" id="next" aria-label="Next Page"><svg viewBox="0 0 60 80" aria-hidden="true"><defs><linearGradient id="arrow-next" x2="1" y2="1"><stop stop-color="#efffff"/><stop offset="1" stop-color="#43bff8"/></linearGradient></defs><path d="M13 8 Q12 5 16 8 L49 38 Q51 40 49 42 L16 72 Q12 75 13 71 L20 40 Z" fill="url(#arrow-next)" stroke="#328ec1" stroke-width="2"/></svg></button>
+      <div id="channel-tooltip" hidden></div>
+      <footer>
+        <svg class="footer-shape" viewBox="0 0 1280 190" aria-hidden="true">
+          <defs><linearGradient id="footer-fill" x2="0" y2="1"><stop stop-color="#afb0b6"/><stop offset="0.48" stop-color="#d9dadd"/><stop offset="1" stop-color="#c6c7cd"/></linearGradient></defs>
+          <path d="M0 2 H190 C280 2 335 82 455 82 H825 C945 82 1000 2 1090 2 H1280 V190 H0 Z" fill="url(#footer-fill)"/>
+          <path d="M0 2 H190 C280 2 335 82 455 82 H825 C945 82 1000 2 1090 2 H1280" fill="none" stroke="#41bce1" stroke-width="3"/>
+          <path d="M0 162 H116 Q194 162 194 100 M1280 162 H1164 Q1086 162 1086 100" fill="none" stroke="#b8b9be" stroke-width="7"/>
+        </svg>
+        <div id="clock" role="img" aria-label="Clock"></div><div id="date"></div><div id="footer-stats" aria-label="System statistics"></div>
+        <button id="settings" class="round-button wii-button" aria-label="Wii Options"><span>Wii</span></button>
+        <button id="audio-settings" class="sd-button" aria-label="Music & Sounds"><svg viewBox="0 0 48 64" aria-hidden="true"><path d="M4 2 H36 L44 11 V61 H4Z" fill="#ecfaff" stroke="#53b8d9" stroke-width="3"/><path d="M9 14 H39 V49 H9Z" fill="white"/><path d="M9 53 H39" stroke="#76cae1" stroke-width="5"/><text x="24" y="37" text-anchor="middle" fill="#85cde0" font-size="17" font-style="italic" font-weight="bold">SD</text></svg></button>
+        <button id="apps" class="round-button mail-button" aria-label="App Library"><svg viewBox="0 0 72 56" aria-hidden="true"><rect x="5" y="8" width="62" height="40" rx="4" fill="#93979a"/><path d="M5 10 L36 30 L67 10" stroke="#e8e9e9" stroke-width="3" fill="none"/></svg></button>
+      </footer>
+      <span id="page-label" class="sr-only" aria-live="polite">Page 1 of 4</span>
+    </main>
+    <section id="channel-screen" hidden aria-label="Channel Preview">
+      <div id="channel-banner"></div>
+      <div class="channel-actions"><button id="channel-back" class="pill">Wii Menu</button><button id="channel-start" class="pill">Start</button></div>
+    </section>
+    <div id="overlay" hidden>
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h1 id="modal-title"></h1><p id="modal-info"></p><div id="modal-content"></div>
+        <div class="dialog-actions"><button id="cancel" class="pill">Back</button><button id="confirm" class="pill">OK</button></div>
+      </section>
+    </div>
+    <div id="toast" role="status" hidden></div>
+  </div>
+  <script src="bridge.js"></script><script src="channels.js"></script><script src="library.js"></script>
+  <script src="artwork.js"></script>
+  <script src="audio-assets.js"></script><script src="audio.js"></script><script src="stats.js"></script><script src="app.js"></script>
+</body>
+</html>

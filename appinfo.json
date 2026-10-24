@@ -1,0 +1,12 @@
+{
+  "id": "com.wiios.launcher",
+  "version": "0.3.30",
+  "vendor": "WiiOS Community",
+  "type": "web",
+  "main": "index.html",
+  "title": "WiiOS",
+  "icon": "icon.png",
+  "resolution": "1280x720",
+  "transparent": false,
+  "disableBackHistoryAPI": true
+}
