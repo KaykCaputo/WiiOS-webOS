@@ -1,0 +1,51 @@
+name: Build IPK
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Test app and IPK packaging
+        run: npm run test:app
+
+      - name: Build IPK
+        run: python3 scripts/build.py
+
+      - name: Verify checksum
+        working-directory: dist
+        run: sha256sum --check *.ipk.sha256
+
+      - name: Upload IPK and checksum
+        uses: actions/upload-artifact@v7
+        with:
+          name: wiios-ipk-${{ github.sha }}
+          path: |
+            dist/*.ipk
+            dist/*.ipk.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
