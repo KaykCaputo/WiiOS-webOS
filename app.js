@@ -12,6 +12,8 @@
 
   var suppressOkUntilRelease = false, suppressPointerClickUntil = 0;
   var HOLD_DELAY = 650;
+  var slots = [], artMarkup = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
+  var lastClock = '', lastDate = '';
   function $(id) { return document.getElementById(id); }
   function escapeHtml(value) { return String(value).replace(/[&<>"']/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]; }); }
   function save() {
@@ -85,14 +87,12 @@
   }
   function artwork(channel, key, fallback, choice, attempts) {
     var image = resolveAppImage(channel.id);
-    var generated = window.WiiArt && window.WiiArt.source(channel);
-
-    var generatedStyle = ''; 
+    var generated;
     if (typeof choice !== 'number') choice = selectedImage(channel.id);
     attempts = attempts || 0;
     if (image && !fallback && choice >= 0 && image.choices[choice]) {
       var picture = image.choices[choice];
-      return '<span class="art art-app art-app-' + picture.kind + '" style="background-color:' + escapeHtml((picture.kind === 'icon' && picture.background) || image.background) + ';' + (picture.kind === 'icon' ? generatedStyle : '') + '">' +
+      return '<span class="art art-app art-app-' + picture.kind + '" style="background-color:' + escapeHtml((picture.kind === 'icon' && picture.background) || image.background) + ';">' +
         '<img class="app-image" data-choice="' + choice + '" data-attempts="' + attempts + '" src="' + escapeHtml(picture.src) + '" alt="" draggable="false">' +
         '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
@@ -100,6 +100,7 @@
     if (channel.id && /^com\.webos\.app\.hdmi/.test(channel.id)) {
       return '<span class="art art-disc art-hdmi"><svg viewBox="0 0 250 140" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#f6f6f6"/><stop offset=".28" stop-color="#b4b6b7"/><stop offset=".49" stop-color="#eee"/><stop offset=".7" stop-color="#afb1b1"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><circle cx="125" cy="65" r="49" fill="url(#' + id + ')" stroke="#c2c4c5" stroke-width="2"/><circle cx="125" cy="65" r="46" fill="none" stroke="#fdfdfd" stroke-width="2"/><circle cx="125" cy="65" r="14" fill="#ededed" stroke="#fafafa" stroke-width="3"/><circle cx="125" cy="65" r="8" fill="#fff" stroke="#ccc" stroke-width="2"/></svg><span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
+    generated = window.WiiArt && window.WiiArt.source(channel);
     if (generated && channel.id) {
       return '<span class="art art-generated" style="background-image:url(' + generated + ')">' +
         '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
@@ -128,13 +129,15 @@
       markup += '<div class="channel-page" data-page="' + p + '" style="left:' + (p * 1096) + 'px">';
       for (i = 0; i < 12; i++) {
         idx = p * 12 + i; channel = channels[idx];
-        markup += '<button id="slot-' + idx + '" class="channel' + (!channel.id ? ' empty' : '') + '" data-slot="' + idx + '" aria-label="' + escapeHtml(channel.name) + '" style="left:' + ((i % 4) * 268) + 'px;top:' + (Math.floor(i / 4) * 159) + 'px" tabindex="-1">' + (channel.id ? artwork(channel, idx) : '') + '</button>';
+        markup += '<button id="slot-' + idx + '" class="channel' + (!channel.id ? ' empty' : '') + '" data-slot="' + idx + '" aria-label="' + escapeHtml(channel.name) + '" style="left:' + ((i % 4) * 268) + 'px;top:' + (Math.floor(i / 4) * 159) + 'px" tabindex="-1">' + '</button>';
       }
       markup += '</div>';
     }
     $('menu').innerHTML = markup;
+    slots = []; artMarkup = []; highlighted = -1; movingSlot = -1;
     Array.prototype.forEach.call($('menu').querySelectorAll('[data-slot]'), function (button) {
       var index = Number(button.getAttribute('data-slot'));
+      slots[index] = button;
       button.onclick = function () {
         if (holdTriggered || Date.now() < suppressPointerClickUntil) { holdTriggered = false; return; }
         if (mode !== 'menu') return;
@@ -169,7 +172,8 @@
   function bindImageFallbacks(container) {
     Array.prototype.forEach.call(container.querySelectorAll('.app-image'), function (image) {
       image.onerror = function () {
-        var parent = image.parentNode.parentNode;
+        var parent = image.parentNode && image.parentNode.parentNode;
+        if (!parent || !document.documentElement.contains(parent)) return;
         var index = parent.id === 'channel-banner' ? selected : Number(parent.getAttribute('data-slot'));
         var art = resolveAppImage(channels[index].id);
         var attempted = Number(image.getAttribute('data-attempts')) + 1;
@@ -182,22 +186,56 @@
   }
   function hideTooltip() { clearTimeout(tooltipTimer); $('channel-tooltip').hidden = true; }
   function highlight() {
-    for (var i = 0; i < 48; i++) {
-      var button = $('slot-' + i);
-      button.classList.toggle('selected', i === selected && focusVisible);
-      button.classList.toggle('moving', i === carrying);
+    var next = focusVisible ? selected : -1;
+    if (highlighted !== next) {
+      if (slots[highlighted]) slots[highlighted].classList.remove('selected');
+      if (slots[next]) slots[next].classList.add('selected');
+      highlighted = next;
+    }
+    if (movingSlot !== carrying) {
+      if (slots[movingSlot]) slots[movingSlot].classList.remove('moving');
+      if (slots[carrying]) slots[carrying].classList.add('moving');
+      movingSlot = carrying;
+    }
+  }
+  function paintSlot(index) {
+    var channel = channels[index], markup = channel.id ? artwork(channel, index) : '';
+    if (artMarkup[index] === markup) return;
+    artMarkup[index] = markup;
+    slots[index].innerHTML = markup;
+    bindImageFallbacks(slots[index]);
+  }
+  function trimPages() {
+    pageTimer = null;
+    for (var p = 0; p < 4; p++) {
+      if (Math.abs(p - page) <= 1) continue;
+      $('menu').children[p].style.visibility = 'hidden';
+      for (var i = p * 12; i < p * 12 + 12; i++) {
+        if (slots[i].firstChild) slots[i].innerHTML = '';
+        artMarkup[i] = null;
+      }
     }
   }
   function updatePage() {
-    hideTooltip(); $('menu').style.transform = 'translateX(' + (-page * 1096) + 'px)';
+    hideTooltip();
+    clearTimeout(pageTimer);
+    for (var p = 0; p < 4; p++) {
+      var visible = p === page, nearby = Math.abs(p - page) <= 1;
+      $('menu').children[p].setAttribute('aria-hidden', String(!visible));
+      $('menu').children[p].classList.toggle('off-page', !visible);
+      if (nearby) $('menu').children[p].style.visibility = '';
+      for (var i = p * 12; i < p * 12 + 12; i++) {
+        slots[i].tabIndex = visible ? 0 : -1;
+        if (nearby) paintSlot(i);
+      }
+    }
+    $('menu').style.transform = 'translateX(' + (-page * 1096) + 'px)';
     $('prev').disabled = page === 0; $('next').disabled = page === 3;
     $('page-label').textContent = 'Page ' + (page + 1) + ' of 4';
-    for (var p = 0; p < 4; p++) {
-      $('menu').children[p].setAttribute('aria-hidden', String(p !== page));
-      for (var i = 0; i < 12; i++) $('slot-' + (p * 12 + i)).tabIndex = p === page ? 0 : -1;
-    }
+    if (reduced || document.hidden) trimPages(); else pageTimer = setTimeout(trimPages, 400);
     highlight();
   }
+  function coverMenu(covered) { $('stage').classList.toggle('menu-covered', covered); }
   function focusChannel() { focusVisible = true; $('slot-' + selected).focus(); highlight(); }
   function switchPage(target) {
     if (mode !== 'menu' || target < 0 || target > 3 || target === page) return;
@@ -272,14 +310,14 @@
   function closeDialog() {
     if (dialogCleanup) { dialogCleanup(); dialogCleanup = null; }
     dialogVersion++; $('overlay').hidden = true; mode = $('channel-screen').hidden ? 'menu' : 'channel';
-    dialogConfirm = null; dialogBack = null;
+    dialogConfirm = null; dialogBack = null; coverMenu(mode !== 'menu');
     if (returnFocus && document.documentElement.contains(returnFocus)) returnFocus.focus();
     else if (mode === 'menu') focusChannel(); else $('channel-start').focus();
   }
   function dialog(title, info, markup, confirmLabel, confirm, back) {
     if (dialogCleanup) { dialogCleanup(); dialogCleanup = null; }
     if (mode !== 'dialog') returnFocus = document.activeElement;
-    dialogVersion++; hideTooltip(); mode = 'dialog';
+    dialogVersion++; hideTooltip(); mode = 'dialog'; coverMenu(true);
     $('modal-title').textContent = title; $('modal-info').textContent = info; $('modal-content').innerHTML = markup || '';
     $('confirm').textContent = confirmLabel || 'OK'; $('confirm').hidden = !confirm; $('confirm').disabled = false;
     dialogConfirm = confirm; dialogBack = back || closeDialog; $('overlay').hidden = false;
@@ -289,7 +327,11 @@
   function option(id, text, note) { return '<button class="option" id="' + id + '">' + escapeHtml(text) + (note ? '<small>' + escapeHtml(note) + '</small>' : '') + '</button>'; }
   function backHome() {
     launchToken++; launchBusy = false; $('channel-start').disabled = false; $('channel-start').textContent = 'Start';
-    $('channel-screen').hidden = true; $('home').removeAttribute('aria-hidden'); mode = 'menu'; Sound.resume(); Sound.effect('back'); focusChannel();
+    $('channel-screen').hidden = true; $('home').removeAttribute('aria-hidden'); mode = 'menu'; coverMenu(false);
+    clearTimeout(returnTimer);
+    $('home').classList.toggle('returning', !reduced && !document.hidden);
+    returnTimer = setTimeout(function () { $('home').classList.remove('returning'); }, 240);
+    Sound.resume(); Sound.effect('back'); focusChannel();
   }
   function openChannel() {
     hideTooltip();
@@ -300,7 +342,8 @@
     if (!channels[selected].id) { library(); return; }
     Sound.effect('select'); $('channel-banner').innerHTML = artwork(channels[selected], 'banner');
     bindImageFallbacks($('channel-banner'));
-    $('channel-screen').hidden = false; $('home').setAttribute('aria-hidden', 'true'); mode = 'channel';
+    $('channel-screen').style.transformOrigin = (108 + (selected % 4) * 268 + 126) + 'px ' + (50 + Math.floor((selected % 12) / 4) * 159 + 72) + 'px';
+    coverMenu(true); $('channel-screen').hidden = false; $('home').setAttribute('aria-hidden', 'true'); mode = 'channel';
     $('channel-start').disabled = false; $('channel-start').textContent = 'Start'; $('channel-start').focus();
   }
   function launch() {
@@ -363,7 +406,7 @@
       option('image-choice', 'Change Channel Image', 'Cycle through images from this TV') +
       option('library-choice', 'App Library') + option('audio-choice', 'Music & Sounds') +
       option('motion-choice', 'Animations: ' + (reduced ? 'reduced' : 'enabled')) + option('remove-choice', 'Clear This Channel') +
-      option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · 0.3.30' : 'webOS App · 0.3.30');
+      option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · 0.3.31' : 'webOS App · 0.3.31');
     dialog('Wii Options', 'Customize your menu channels.', markup, '', null);
     $('edit-choice').onclick = edit; $('move-choice').onclick = beginMove;
     $('image-choice').disabled = !channels[selected].id || !resolveAppImage(channels[selected].id) || !resolveAppImage(channels[selected].id).choices.length;
@@ -380,7 +423,7 @@
       }, settings);
     };
     $('about-choice').onclick = function () {
-      dialog('WiiOS 0.3.30', preview ? 'Preview mode: listed apps are examples.' : 'Independent launcher for webOS 4.5.',
+      dialog('WiiOS 0.3.31', preview ? 'Preview mode: listed apps are examples.' : 'Independent launcher for webOS 4.5.',
         '<p class="note">Arrows: navigate · OK: select · Back: return<br>Yellow/Blue or PageUp/PageDown: pages<br>Red/E: edit · Green/M: move · S: options</p>' +
         '<p class="note">Home replacement and startup are managed separately by your TV configuration.</p>' +
         '<p class="note">Interface recreated in CSS/SVG. App images are loaded from this TV. Audio files are bundled locally. Community project unaffiliated with Nintendo or LG.</p>', '', null, settings);
@@ -388,9 +431,8 @@
   }
   function refreshArtwork() {
     channels.forEach(function (channel, index) {
-      if (channel.id) $('slot-' + index).innerHTML = artwork(channel, index);
+      if (Math.abs(Math.floor(index / 12) - page) <= 1) paintSlot(index);
     });
-    bindImageFallbacks($('menu'));
     if (!$('channel-screen').hidden) {
       $('channel-banner').innerHTML = artwork(channels[selected], 'banner');
       bindImageFallbacks($('channel-banner'));
@@ -490,8 +532,11 @@
       svg += '</g>';
     }
     svg += '<circle cx="104" cy="24" r="4"/><circle cx="104" cy="50" r="4"/></g></svg>';
-    $('clock').innerHTML = svg; $('clock').setAttribute('aria-label', hours + ':' + minutes);
-    $('date').textContent = ('0' + date.getDate()).slice(-2) + '.' + ('0' + (date.getMonth() + 1)).slice(-2) + '. (' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()] + ')';
+    if (digits !== lastClock) {
+      $('clock').innerHTML = svg; $('clock').setAttribute('aria-label', hours + ':' + minutes); lastClock = digits;
+    }
+    var dateLabel = ('0' + date.getDate()).slice(-2) + '.' + ('0' + (date.getMonth() + 1)).slice(-2) + '. (' + ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()] + ')';
+    if (dateLabel !== lastDate) { $('date').textContent = dateLabel; lastDate = dateLabel; }
   }
   function dialogKeys(event, code) {
     var active = document.activeElement;
@@ -572,6 +617,7 @@
   window.addEventListener('resize', resize);
   document.addEventListener('visibilitychange', function () {
     $('stage').classList.toggle('backgrounded', document.hidden); clearInterval(clockTimer);
+    if (document.hidden) { cancelHold(); hideTooltip(); clearTimeout(pageTimer); trimPages(); }
     if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); }
   });
   document.addEventListener('webOSRelaunch', function () { if (mode === 'channel') backHome(); });

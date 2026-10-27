@@ -50,11 +50,11 @@
     function visibility() {
       if (frame !== null) root.cancelAnimationFrame(frame);
       frame = null; started = null; frames = 0;
+      clearInterval(poll); poll = null;
       if (document.hidden) {values.fps.textContent = '—'; if (xhr) xhr.abort();}
-      else {frame = root.requestAnimationFrame(tick); update();}
+      else {frame = root.requestAnimationFrame(tick); update(); poll = setInterval(update, 2000);}
     }
     unavailable(); document.addEventListener('visibilitychange', visibility); visibility();
-    poll = setInterval(update, 2000);
     return function () {
       stopped = true; clearInterval(poll);
       document.removeEventListener('visibilitychange', visibility);

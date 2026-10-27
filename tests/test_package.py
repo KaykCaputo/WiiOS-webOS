@@ -37,7 +37,7 @@ class PackageTest(unittest.TestCase):
                     self.assertIn(prefix + name, names)
                     self.assertEqual(archive.extractfile(prefix + name).read(), paths[0].read_bytes())
                 app = json.load(archive.extractfile(prefix + 'appinfo.json'))
-                self.assertEqual(app['version'], '0.3.30')
+                self.assertEqual(app['version'], json.loads((ROOT / 'appinfo.json').read_text())['version'])
                 self.assertFalse(any('/assets/apps/' in item for item in names))
 
 
