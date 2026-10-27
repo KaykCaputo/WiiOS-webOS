@@ -5,6 +5,7 @@ var ROOTS = ['/usr/palm/applications', '/media/cryptofs/apps/usr/palm/applicatio
   '/media/system/apps/usr/palm/applications', '/mnt/otncabi/usr/palm/applications'];
 var TYPES = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'};
 var zlib = require('zlib');
+function allocate(size) {return Buffer.alloc ? Buffer.alloc(size) : new Buffer(size);}
 function pngIconBackground(file) {
   try {
     var png = fs.readFileSync(file);
@@ -31,7 +32,7 @@ function pngIconBackground(file) {
     if ((stride + 1) * height > 5 * 1024 * 1024) return '';
     var raw = zlib.inflateSync(Buffer.concat(chunks));
     if (raw.length !== (stride + 1) * height) return '';
-    var prev = new Buffer(stride), row = new Buffer(stride); prev.fill(0);
+    var prev = allocate(stride), row = allocate(stride); prev.fill(0);
     var bins = Object.create(null), best = null, transparent = false;
     var rowStep = Math.max(1, Math.floor(height / 48)), colStep = Math.max(1, Math.floor(width / 48));
     var offset = 0, y, x, i;
@@ -137,7 +138,7 @@ function catalog(options) {
   }
 
   function signature(file, stat) {
-    var fd, bytes = new Buffer(Math.min(stat.size, 65536));
+    var fd, bytes = allocate(Math.min(stat.size, 65536));
     try {
       fd = fs.openSync(file, 'r');
       var count = fs.readSync(fd, bytes, 0, bytes.length, 0);

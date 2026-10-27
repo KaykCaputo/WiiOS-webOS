@@ -1,12 +1,13 @@
 PYTHON ?= python3
 TV ?= YOUR_TV_IP
+INSTALLER_ARGS ?=
 .PHONY: build install app home privacy status home-off privacy-off off test preview
 build:
 	$(PYTHON) scripts/build.py
 install:
-	$(PYTHON) scripts/tv.py install --host $(TV)
+	$(PYTHON) scripts/tv.py install --host $(TV) $(INSTALLER_ARGS)
 app:
-	$(PYTHON) scripts/tv.py app --host $(TV)
+	$(PYTHON) scripts/tv.py app --host $(TV) $(INSTALLER_ARGS)
 home:
 	$(PYTHON) scripts/tv.py home --host $(TV)
 privacy:
@@ -20,8 +21,6 @@ privacy-off:
 off:
 	$(PYTHON) scripts/tv.py off --host $(TV)
 test:
-	node --test tests/*.test.cjs fullhome-integration/tests/*.test.cjs
-	$(PYTHON) -m unittest discover -s tests -v
-	$(PYTHON) -m unittest discover -s fullhome-integration/tests -v
+	npm test
 preview:
 	$(PYTHON) -m http.server 8080 --bind 127.0.0.1

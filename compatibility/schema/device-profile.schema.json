@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1
+      ]
+    },
+    "capturedAt": {
+      "type": "string"
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "board": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "firmware": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sdkVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "architecture": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "model",
+        "board",
+        "firmware",
+        "sdkVersion",
+        "architecture"
+      ],
+      "additionalProperties": false
+    },
+    "transport": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "developer-mode",
+            "root-ssh"
+          ]
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "root": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "hostFingerprint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "connected",
+        "root",
+        "hostFingerprint",
+        "endpoint"
+      ],
+      "additionalProperties": false
+    },
+    "home": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "implementation": {
+          "enum": [
+            "unknown",
+            "qml",
+            "native",
+            "web",
+            "flutter"
+          ]
+        },
+        "effectiveDirectory": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stockManifestSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effectiveManifestSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetHashes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "[a-f0-9]{64}"
+          }
+        },
+        "mountNamespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "namespaceVerified": {
+          "type": "boolean"
+        },
+        "foreignMounts": {
+          "type": "array"
+        },
+        "conflictingHooks": {
+          "type": "array"
+        },
+        "candidates": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "appId",
+        "implementation",
+        "effectiveDirectory",
+        "stockManifestSha256",
+        "effectiveManifestSha256",
+        "targetHashes",
+        "mountNamespace",
+        "namespaceVerified",
+        "foreignMounts",
+        "conflictingHooks",
+        "candidates"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "ipkInstall": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "lunaApplicationListing": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "lunaApplicationLaunch": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "ssapPairing": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "samManifestReload": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "nativeHomeLifecycle": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        },
+        "webAppManager": {
+          "enum": [
+            "available",
+            "unavailable",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "ipkInstall",
+        "lunaApplicationListing",
+        "lunaApplicationLaunch",
+        "ssapPairing",
+        "samManifestReload",
+        "nativeHomeLifecycle",
+        "webAppManager"
+      ],
+      "additionalProperties": false
+    },
+    "wiiOsInstallation": {
+      "type": "object",
+      "properties": {
+        "appInstalled": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "homeAdapter": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transactionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "appInstalled",
+        "homeAdapter",
+        "transactionId"
+      ],
+      "additionalProperties": false
+    },
+    "recovery": {
+      "type": "object",
+      "properties": {
+        "independentTestPassed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "independentTestPassed"
+      ],
+      "additionalProperties": false
+    },
+    "observations": {
+      "type": "array"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "redacted": {
+      "enum": [
+        true
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "capturedAt",
+    "identity",
+    "transport",
+    "home",
+    "capabilities",
+    "wiiOsInstallation",
+    "recovery",
+    "observations",
+    "errors",
+    "redacted"
+  ],
+  "additionalProperties": false
+}

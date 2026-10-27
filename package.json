@@ -1,16 +1,18 @@
 {
   "name": "wiios-launcher",
-  "version": "0.3.31",
+  "version": "0.3.34",
   "private": true,
   "description": "Wii-inspired launcher for LG webOS TVs",
   "scripts": {
     "test:app": "node --test tests/*.test.cjs && python3 -m unittest discover -s tests -v",
-    "test": "node --test tests/*.test.cjs fullhome-integration/tests/*.test.cjs && python3 -m unittest discover -s tests -v && python3 -m unittest discover -s fullhome-integration/tests -v",
+    "test": "node --test tests/*.test.cjs fullhome-integration/tests/*.test.cjs && python3 -m unittest discover -s tests -v && python3 -m unittest discover -s fullhome-integration/tests -v && python3 -m unittest discover -s compatibility/tests -v && python3 -m unittest discover -s installer/tests -v && python3 -m unittest discover -s home/tests -v && python3 scripts/check_version.py && python3 scripts/check_policy.py",
     "build": "python3 scripts/build.py",
     "start": "python3 -m http.server 8080 --bind 127.0.0.1",
     "install:tv": "python3 scripts/tv.py install"
   },
   "devDependencies": {
-    "jsdom": "20.0.3"
+    "acorn": "8.14.1",
+    "jsdom": "20.0.3",
+    "postcss": "8.5.32"
   }
 }

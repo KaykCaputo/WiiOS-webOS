@@ -402,11 +402,12 @@
     if (statsVisible) statsCleanup = window.WiiStats.mount(container, {isTV: TV.isTV});
   }
   function settings() {
+    var uiVersion = typeof window.WIIOS_VERSION === 'string' ? window.WIIOS_VERSION : 'development';
     var markup = option('edit-choice', 'Edit Channel', channels[selected].name) + option('move-choice', 'Move Channel') +
       option('image-choice', 'Change Channel Image', 'Cycle through images from this TV') +
       option('library-choice', 'App Library') + option('audio-choice', 'Music & Sounds') +
       option('motion-choice', 'Animations: ' + (reduced ? 'reduced' : 'enabled')) + option('remove-choice', 'Clear This Channel') +
-      option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · 0.3.31' : 'webOS App · 0.3.31');
+      option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · ' + uiVersion : 'webOS App · ' + uiVersion);
     dialog('Wii Options', 'Customize your menu channels.', markup, '', null);
     $('edit-choice').onclick = edit; $('move-choice').onclick = beginMove;
     $('image-choice').disabled = !channels[selected].id || !resolveAppImage(channels[selected].id) || !resolveAppImage(channels[selected].id).choices.length;
@@ -423,7 +424,7 @@
       }, settings);
     };
     $('about-choice').onclick = function () {
-      dialog('WiiOS 0.3.31', preview ? 'Preview mode: listed apps are examples.' : 'Independent launcher for webOS 4.5.',
+      dialog('WiiOS ' + uiVersion, preview ? 'Preview mode: listed apps are examples.' : 'Independent launcher for webOS 4.5.',
         '<p class="note">Arrows: navigate · OK: select · Back: return<br>Yellow/Blue or PageUp/PageDown: pages<br>Red/E: edit · Green/M: move · S: options</p>' +
         '<p class="note">Home replacement and startup are managed separately by your TV configuration.</p>' +
         '<p class="note">Interface recreated in CSS/SVG. App images are loaded from this TV. Audio files are bundled locally. Community project unaffiliated with Nintendo or LG.</p>', '', null, settings);

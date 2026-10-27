@@ -27,17 +27,19 @@ jobs:
           cache: npm
 
       - name: Install test dependencies
-        run: npm ci --ignore-scripts
+        run: |
+          npm ci --ignore-scripts
+          python3 -m pip install -r requirements-dev.txt
 
-      - name: Test app and IPK packaging
-        run: npm run test:app
+      - name: Test application, installer, and Home recovery
+        run: npm test
 
       - name: Build IPK
         run: python3 scripts/build.py
 
       - name: Verify checksum
         working-directory: dist
-        run: sha256sum --check *.ipk.sha256
+        run: sha256sum --check *.sha256
 
       - name: Upload IPK and checksum
         uses: actions/upload-artifact@v7
@@ -46,6 +48,9 @@ jobs:
           path: |
             dist/*.ipk
             dist/*.ipk.sha256
+            dist/*.pyz
+            dist/*.pyz.sha256
+            dist/build-manifest.json
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -75,5 +80,5 @@ jobs:
             echo "Release $TAG already exists; bump appinfo.json version for a new release."
             exit 0
           fi
-          gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
+          gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
 

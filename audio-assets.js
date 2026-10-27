@@ -1,1 +1,2 @@
 window.WII_AUDIO_ASSETS = {"back": "assets/audio/back.wav", "hover": "assets/audio/hover.wav", "menu": "assets/audio/menu.mp3", "page": "assets/audio/page.wav", "select": "assets/audio/select.wav", "start": "assets/audio/start.wav"};
+window.WIIOS_VERSION = "0.3.34";

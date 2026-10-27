@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1
+      ]
+    },
+    "profileId": {
+      "type": "string"
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "board": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "firmware": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sdkVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "architecture": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "model",
+        "board",
+        "firmware",
+        "sdkVersion",
+        "architecture"
+      ],
+      "additionalProperties": false
+    },
+    "home": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "implementation": {
+          "enum": [
+            "unknown",
+            "qml",
+            "native",
+            "web",
+            "flutter"
+          ]
+        },
+        "effectiveDirectory": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stockManifestSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effectiveManifestSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "targetHashes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "[a-f0-9]{64}"
+          }
+        }
+      },
+      "required": [
+        "appId",
+        "implementation",
+        "effectiveDirectory",
+        "stockManifestSha256",
+        "effectiveManifestSha256",
+        "targetHashes"
+      ],
+      "additionalProperties": false
+    },
+    "applicationMode": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "testReports": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "testReports"
+      ],
+      "additionalProperties": false
+    },
+    "homeReplacement": {
+      "type": "object",
+      "properties": {
+        "adapter": {
+          "enum": [
+            "qml-redirect",
+            "native-home-standin",
+            "home-directory-takeover"
+          ]
+        },
+        "status": {
+          "enum": [
+            "HOME_CONFIRMED",
+            "NEEDS_DEVICE_VALIDATION"
+          ]
+        },
+        "testReports": {
+          "type": "array"
+        },
+        "validatedWiiOsCommit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "validatedAdapterVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artifactDigest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "maintainerApproved": {
+          "type": "boolean"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "adapter",
+        "status",
+        "testReports",
+        "validatedWiiOsCommit",
+        "validatedAdapterVersion",
+        "artifactDigest",
+        "maintainerApproved",
+        "requiredCapabilities"
+      ],
+      "additionalProperties": false
+    },
+    "knownIssues": {
+      "type": "array"
+    },
+    "sources": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "identity",
+    "home",
+    "applicationMode",
+    "homeReplacement",
+    "knownIssues",
+    "sources"
+  ],
+  "additionalProperties": false
+}

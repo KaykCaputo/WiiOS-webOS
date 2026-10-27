@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "transactionId": "diag-3e891511b377",
+  "base": "/var/lib/webosbrew/wiios-fullhome-diag/diag-3e891511b377",
+  "files": {
+    "common.sh": "fbaf4d0457b218338d27ec474edd90bd95e29bf9417c281ebf483fdeaddf1cab",
+    "rollback.sh": "1e91abe14ae44d8110baa73898e81e4f0a078c3fb239d75e8441c17ba3a9008e",
+    "config.sh": "36849840fada1ce1a6e2b588a2060785c4a3ef35e5cf6c4ba0d19374e8793fd2",
+    "disable-startup.sh": "5543ee061c70afd926f4708d943b7470b13831cd8fc61f2edd30448d16699b07",
+    "99-wiios-fullhome": "4074684a5ce0ed98beaffee047aca5233c2bc20fc21fd30d4f5f0acee2c51736"
+  },
+  "scope": "Existing legacy rollback only; not a Home compatibility approval."
+}

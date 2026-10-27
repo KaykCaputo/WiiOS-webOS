@@ -1,0 +1,1 @@
+The legacy FullHome QML hashes are recorded in `home/adapters/qml_redirect.py`. They identify two files, not a complete firmware qualification. Native stand-in and directory takeover research is recorded in `docs/SOURCE-RESEARCH.md`. All three paths require device validation before release activation.

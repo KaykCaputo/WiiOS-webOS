@@ -1,0 +1,592 @@
+{
+  "project": "WiiOS-webOS",
+  "version": "0.3.34",
+  "edition": "complete-source-media-and-rebuilt-tui",
+  "fileCountWithoutManifest": 146,
+  "files": {
+    ".github/workflows/build-ipk.yml": {
+      "size": 2357,
+      "sha256": "be59566947cb5d3b9feb1150e2fe5756ee44f49bd5fe19990f93dd8b34ac4276"
+    },
+    ".github/workflows/build-ipk.yml.bak": {
+      "size": 1070,
+      "sha256": "612ae95af6512fdc67af7a21c5eaf9d7b7aaa976e651744b4d750456e2d3e6ce"
+    },
+    ".gitignore": {
+      "size": 115,
+      "sha256": "63da0d19f158c2dd105bf170b387db6e9cf2c38c4089a3306b5af77875d77fe3"
+    },
+    ".tools/audio-originals-0.3.12/back.mp3": {
+      "size": 35662,
+      "sha256": "09f1e8420ed2023d2630fc5534a4ce0e02ea45d8dbbd7a709c088f25bb37b787"
+    },
+    ".tools/audio-originals-0.3.12/hover.mp3": {
+      "size": 24084,
+      "sha256": "1c5d71f0330b151e0b03daf839e423e755d4458896e1bc791341ba6642d828bd"
+    },
+    ".tools/audio-originals-0.3.12/menu.mp3": {
+      "size": 4146331,
+      "sha256": "2e3032649893b9965ab325a6cb6a84683a7f30056e9a3c584b928a49f087392e"
+    },
+    ".tools/audio-originals-0.3.12/page.mp3": {
+      "size": 16431,
+      "sha256": "80efcaf3dd3d7555237b552fab2bec1cc9ff267f70aecdd7397cf3656b23d7e6"
+    },
+    ".tools/audio-originals-0.3.12/select.mp3": {
+      "size": 23747,
+      "sha256": "3999ed3c4e852c81256767845ead133c2a4a82e3f2f401a08f89b365a61fff8d"
+    },
+    ".tools/audio-originals-0.3.12/start.mp3": {
+      "size": 41577,
+      "sha256": "a1b35351dac0746d817c1be6b2444e7d82881550750819bb3cfd4872053ec061"
+    },
+    ".tools/audio-originals-0.3.12/trim-report.json": {
+      "size": 625,
+      "sha256": "bd8b22d9e9079ef456140743dad80f263a20e7d098dad930af96e6813e9a7d13"
+    },
+    "LICENSE": {
+      "size": 13227,
+      "sha256": "7c975840485fd3de8344a58aa50339bf70161d8f8138b96983041775305f0ea7"
+    },
+    "Makefile": {
+      "size": 707,
+      "sha256": "fd622eb91c543cef4fce481be7b36e366d9216cc152147d5bb7888756bf7ec7d"
+    },
+    "NOTICE": {
+      "size": 1489,
+      "sha256": "2c943ccd224e732644eaffa8878d8fd6c2aa0f837d8041c310a47bb3c60ea5b6"
+    },
+    "PACKAGE_CONTENTS.md": {
+      "size": 2329,
+      "sha256": "1580434e4cd420fa7a2297f6ee366116d8d0b51d0e82a1ffd6241df20337e4dc"
+    },
+    "README.md": {
+      "size": 1929,
+      "sha256": "85691a29e643f79462c5816e264b5dfd01ab2c07d8e81741b59e27089fffafb5"
+    },
+    "app.js": {
+      "size": 43511,
+      "sha256": "5c8a45c9ee93b939d0d941ab976cfb6fe7b1fb4489746c041971df18cd12a301"
+    },
+    "appinfo.json": {
+      "size": 255,
+      "sha256": "36b1aadf08a961d4b737b4aa4721b6db1477a326e8342a72aeed29373c0e5db9"
+    },
+    "artwork.js": {
+      "size": 2286,
+      "sha256": "b7397398b9c1d62ea1fdbed6b426a3b8a6db2ae0a482c9a143ac0456ee4db187"
+    },
+    "assets/audio/back.wav": {
+      "size": 339354,
+      "sha256": "e4b6f42bb2d16ef39c062313568293f7162196eb72738728f1e5ca1e371d608b"
+    },
+    "assets/audio/hover.wav": {
+      "size": 345798,
+      "sha256": "36de4cef8e8776695cdc7a1a2030af164298be7db8ade21c4fe751b3a182a896"
+    },
+    "assets/audio/menu.mp3": {
+      "size": 2569528,
+      "sha256": "820a3a7b0ae1470cbeb45ffcde9561f618b1ffb7d3d16de5816eda4b4fc54db0"
+    },
+    "assets/audio/page.wav": {
+      "size": 62082,
+      "sha256": "dd633bdc810489735da2da270c52a72249553af85bc2b9707cbfc965affdf68e"
+    },
+    "assets/audio/select.wav": {
+      "size": 154342,
+      "sha256": "66ccfcd781f99e04a98226f25faa94e6cd4e7a8f5c715569d85b484d32a13a6d"
+    },
+    "assets/audio/start.wav": {
+      "size": 409494,
+      "sha256": "f4ab604ff6bf021995969620f0dc6626c742020bd5c585723b029f8bc654d73e"
+    },
+    "assets/people.svg": {
+      "size": 582,
+      "sha256": "b950481a3aaddedfb4dd9ee56b4c3cb0ce9825cd0f701b0163bde09625bbde8f"
+    },
+    "assets/pointer.svg": {
+      "size": 467,
+      "sha256": "e28a52bd36cb73269b0e2ed0e429631c662f6a089b432b3be152b060bd3899fa"
+    },
+    "assets/static.svg": {
+      "size": 730,
+      "sha256": "d968dfb0c201ef95f9c8b7ded4b55386a6c4422fa2cee74c6b8c3aa8b2630112"
+    },
+    "audio-assets.js": {
+      "size": 267,
+      "sha256": "2c36dbd064070930494c2614a7e5fa9d6ba2a364d3d5347ec4351a19a185dbac"
+    },
+    "audio.js": {
+      "size": 5482,
+      "sha256": "5df265bc20394a3bbcd5cc2003e0519ffdb8571d7b19361b32041d7bf6cef956"
+    },
+    "bridge.js": {
+      "size": 3728,
+      "sha256": "b8e275ac69cd43fb071a4f252bdd06c737909c8959f2be557d9a15d11aa3206f"
+    },
+    "channels.js": {
+      "size": 3693,
+      "sha256": "be9b8a7dcd417afc24509bbb74d8b6b8f0e94917054c0e3fc18789868c1448ae"
+    },
+    "compatibility/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "compatibility/mountinfo.py": {
+      "size": 1321,
+      "sha256": "5866d3f5090d39c75a3def13465174df72e0685f33a1e202f773f0cddcb05202"
+    },
+    "compatibility/probe.py": {
+      "size": 8305,
+      "sha256": "784350350a0b7630c3127528fea26eefbfce3c033b971b4ffa10c4fd15b8ab7a"
+    },
+    "compatibility/profiles/experimental/README.md": {
+      "size": 303,
+      "sha256": "840090c2b7eec35b66ee34d6a16d625866fe3be63a00437f3db745007dd7325c"
+    },
+    "compatibility/profiles/verified/README.md": {
+      "size": 174,
+      "sha256": "7293d04f2e2b28fa832500d8c7c59e4633741bb4949323a7de770fdd8c631d1d"
+    },
+    "compatibility/resolver.py": {
+      "size": 4139,
+      "sha256": "df3e00f0db285e743602b130a2ec6e829772a28891413ffd0e7057f8f7b82c4e"
+    },
+    "compatibility/schema.py": {
+      "size": 2048,
+      "sha256": "d4f68de66f8fcbe05d76ec59d7cce52d422465dbb53303d13250296b4b2b2b71"
+    },
+    "compatibility/schema/change-plan.schema.json": {
+      "size": 2195,
+      "sha256": "e4a55bf8b210daf290efdad597ca3f3caa6f7e959e9560919d1893ba35a6f5f0"
+    },
+    "compatibility/schema/compatibility-entry.schema.json": {
+      "size": 3993,
+      "sha256": "34984bceef1151af3f22d813b7deaf305dd6370ad8dc08ce9429da7ccc438517"
+    },
+    "compatibility/schema/device-profile.schema.json": {
+      "size": 5894,
+      "sha256": "91bfe82b2fa97bc68cf7ec085feaba068907bf897989544d922a194426cc2987"
+    },
+    "compatibility/signatures.py": {
+      "size": 669,
+      "sha256": "0d35e4440007b864236030a09418cd05e3d78caf158787e84d1e2cfd33ccd69d"
+    },
+    "compatibility/tests/fixtures.py": {
+      "size": 2196,
+      "sha256": "7cb450f1eb1f37952a745f05e4abb076080983dbd1dd0cda0b272d30e3ad9126"
+    },
+    "compatibility/tests/test_probe.py": {
+      "size": 1993,
+      "sha256": "e8ac768968a6d193fa6de2a9d55b5e6a56db74c77ca3df07720705822b932bb7"
+    },
+    "compatibility/tests/test_resolution.py": {
+      "size": 5499,
+      "sha256": "675c993ab6648f2ca61dd8e62ad5fbfa4746abbd4c49d19c7ab36957b776b612"
+    },
+    "docs/COMPATIBILITY.md": {
+      "size": 2764,
+      "sha256": "621d5aedebae07a1a96ec254929e80a1a8cf5d8ef56b6ad8c6ce7c0463c6c9c3"
+    },
+    "docs/CONTRIBUTING-DEVICE-REPORTS.md": {
+      "size": 1368,
+      "sha256": "5fe7e4bce214f280812c6e22715dada5bbb8f98fe554b3a78e7c7e99672ef36b"
+    },
+    "docs/HOME-INTEGRATION.md": {
+      "size": 2316,
+      "sha256": "e21e0c1bb2f2310d8ace21d29f3daf3736784e4d6bccdd78a0427005746ed9b5"
+    },
+    "docs/IMPLEMENTATION-STATUS.md": {
+      "size": 3901,
+      "sha256": "cd40ec3462663ab22ce42ede38ff5d9ad22efd03787a2ba4a14024a21862b76c"
+    },
+    "docs/INSTALL.md": {
+      "size": 7360,
+      "sha256": "3acc2a3a7ad996a457fcb56e91477d904b484c63b87634ab2277af9994c7e0de"
+    },
+    "docs/RECOVERY.md": {
+      "size": 3141,
+      "sha256": "3dabb4ead208cdce231fed6bf05ab86e11437f655989593b30c34b5339a80101"
+    },
+    "docs/SOURCE-RESEARCH.md": {
+      "size": 5873,
+      "sha256": "cced1851aae8e169fbdfb9d563d82425fde46c8ad4d118d867b139889f6d0809"
+    },
+    "docs/media/demo.gif": {
+      "size": 568076,
+      "sha256": "99902d80d2ec3fe8ee99d5a1d8d3ba32a802229867035a330d977e7ab01a06ba"
+    },
+    "docs/media/home.png": {
+      "size": 169424,
+      "sha256": "576fba52f53f68550e6ff0e69870af0722e239a86ae697ed5ee9b189b651b422"
+    },
+    "docs/reports/device-readonly-2026-10-27.json": {
+      "size": 7239,
+      "sha256": "ae0f9e4e652d00eb502e42f9d0e75a3d40a170bf504e886ec53b6c33ce31edd2"
+    },
+    "docs/source-research.json": {
+      "size": 5869,
+      "sha256": "9f8b2115286fb334ae69c25b860cb15139a08285d71894886686b6370654f2ad"
+    },
+    "fullhome-integration/activate.sh": {
+      "size": 2272,
+      "sha256": "fcff8e7924a24c54469632b38e2077679ef30e1d57f72fc955134bb31c3459da"
+    },
+    "fullhome-integration/bundle/99-wiios-fullhome": {
+      "size": 234,
+      "sha256": "4074684a5ce0ed98beaffee047aca5233c2bc20fc21fd30d4f5f0acee2c51736"
+    },
+    "fullhome-integration/bundle/UIController.qml": {
+      "size": 26319,
+      "sha256": "ccc1090479b4918742fea920ad2298258bb9c6145d072260fbc956bab270f775"
+    },
+    "fullhome-integration/bundle/activate.sh": {
+      "size": 1905,
+      "sha256": "0dc0ececf92fe6cc543e25e6f9a4348d531828ec759e2d8d119b61598d7847dd"
+    },
+    "fullhome-integration/bundle/boot.sh": {
+      "size": 2842,
+      "sha256": "c9b58224dc3a7eb1a9edf138ffad62410f31e4e10c9643627692ca91a42289a8"
+    },
+    "fullhome-integration/bundle/common.sh": {
+      "size": 4308,
+      "sha256": "fbaf4d0457b218338d27ec474edd90bd95e29bf9417c281ebf483fdeaddf1cab"
+    },
+    "fullhome-integration/bundle/config.sh": {
+      "size": 611,
+      "sha256": "36849840fada1ce1a6e2b588a2060785c4a3ef35e5cf6c4ba0d19374e8793fd2"
+    },
+    "fullhome-integration/bundle/disable-startup.sh": {
+      "size": 365,
+      "sha256": "5543ee061c70afd926f4708d943b7470b13831cd8fc61f2edd30448d16699b07"
+    },
+    "fullhome-integration/bundle/launch-on-boot.sh": {
+      "size": 2081,
+      "sha256": "97c225bf385efd690258aedd8b4d50df0c51491511c75c3d4cf6621a9e8001a8"
+    },
+    "fullhome-integration/bundle/main.qml": {
+      "size": 16778,
+      "sha256": "ac7901e140f8ffc8f2c0c123b96bd4b9f406116f4936dbf876a37b01084943a5"
+    },
+    "fullhome-integration/bundle/manifest.json": {
+      "size": 833,
+      "sha256": "11bd201ee40c1e5423fce2953c15853f0d6435c180c05abf3ce736c3fba1e48e"
+    },
+    "fullhome-integration/bundle/persistent.sha256": {
+      "size": 875,
+      "sha256": "f34dfbe4872e4a5a7b4fca3c8c5cbfe3d58df773ed359c706047914faee98ea0"
+    },
+    "fullhome-integration/bundle/rollback.sh": {
+      "size": 1562,
+      "sha256": "1e91abe14ae44d8110baa73898e81e4f0a078c3fb239d75e8441c17ba3a9008e"
+    },
+    "fullhome-integration/bundle/wake-monitor.sh": {
+      "size": 957,
+      "sha256": "5713b74fab288e64f6fdb69101e2bd27c8c0ea089b308171a218c1a372198e6f"
+    },
+    "fullhome-integration/common.sh": {
+      "size": 4308,
+      "sha256": "fbaf4d0457b218338d27ec474edd90bd95e29bf9417c281ebf483fdeaddf1cab"
+    },
+    "fullhome-integration/prepare.py": {
+      "size": 7558,
+      "sha256": "23a8d94bcdde366aa3f640f8341bbbc9baeb9a2fd08082cde1a0b7d0a9e49a09"
+    },
+    "fullhome-integration/redirect.py": {
+      "size": 4250,
+      "sha256": "57b8a192fe39a6793f7faa32940ae19e6154af26e94e65a00e0fd100369518ce"
+    },
+    "fullhome-integration/rollback.sh": {
+      "size": 1562,
+      "sha256": "1e91abe14ae44d8110baa73898e81e4f0a078c3fb239d75e8441c17ba3a9008e"
+    },
+    "fullhome-integration/session.py": {
+      "size": 4474,
+      "sha256": "11042dd73dca03f8f129241cd52f8044f10a8ef4c054b1e479d16187e34784e5"
+    },
+    "fullhome-integration/status.sh": {
+      "size": 341,
+      "sha256": "d23d7e704f832c50572e6651a2905e589f226ccec07dfbfa29d8390216183efe"
+    },
+    "fullhome-integration/tests/redirect.test.cjs": {
+      "size": 4344,
+      "sha256": "b1358571e6f88824e4cd6c853bfe25ebe37804c6165d4dc66b0e5e469346811d"
+    },
+    "fullhome-integration/tests/test_boot.py": {
+      "size": 2973,
+      "sha256": "c78990a217584763231e2ac17a0aeeabf5ff9879c8819242218d55905f60dc38"
+    },
+    "fullhome-integration/tests/test_diagnostic.py": {
+      "size": 7902,
+      "sha256": "1d1b3cd7d280d83309774fe42dc628a9f6c2d6f95bcacb06e99f38d4bde523b2"
+    },
+    "fullhome-integration/watchdog.sh": {
+      "size": 152,
+      "sha256": "d236b3d7c12f2aca9602b5015be2070448797a22fb16212aaab0cbf9d8285a1a"
+    },
+    "home/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "home/adapters/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "home/adapters/base.py": {
+      "size": 2055,
+      "sha256": "cb5ed9736fafb4a2f7301afa791debca45c97898d241563b2d494fdc07054652"
+    },
+    "home/adapters/directory_takeover.py": {
+      "size": 939,
+      "sha256": "bed1ba5e5f09fcb83fcf10670a5125a81bcf095081b1e09454ec4c4375d53221"
+    },
+    "home/adapters/native_standin.py": {
+      "size": 711,
+      "sha256": "03ca2a2ece2363bcb3819b14569679dfc3ce364c76f8a5760ade2a96732f4525"
+    },
+    "home/adapters/qml_redirect.py": {
+      "size": 904,
+      "sha256": "9bee584dc10106a46258d8ae152a92443a7b21542554182fa8c61a4db0e4d76f"
+    },
+    "home/lifecycle/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "home/lifecycle/sam_client.py": {
+      "size": 1848,
+      "sha256": "56b5ff648bf544ca2fa1ab41b1df40966aa0393ed541a9d8edf0114bd590aeea"
+    },
+    "home/operations/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "home/operations/boot_guard.py": {
+      "size": 544,
+      "sha256": "127becdd907d2af4e2d71f6c260ddead17829e5ff86b22cfc3acbb3add99e048"
+    },
+    "home/operations/legacy-recovery.json": {
+      "size": 676,
+      "sha256": "256cbfe08695f12ba86d5061aefa461a806cd70919ec93675680dc45f1fb6e5a"
+    },
+    "home/operations/legacy_recovery.py": {
+      "size": 1848,
+      "sha256": "076c21d3896037a525c8a98febc6687c0b519d83a23553eced08363cc554827a"
+    },
+    "home/operations/mount_manager.py": {
+      "size": 1437,
+      "sha256": "7722e522b33c27f6975f4ac0237d22eb7abb9fb4e245e5b60375fa89c3c1c45c"
+    },
+    "home/operations/transaction.py": {
+      "size": 6262,
+      "sha256": "b719ab2e148e346f2fe1813b9ec119b3c02bd3af6f0fa017a9937e943646abab"
+    },
+    "home/tests/test_transactions.py": {
+      "size": 9078,
+      "sha256": "c6a3a8a9b1702374fa6ec7d7a9065f5795e022e213bba4e7e183fc5f9fd45e53"
+    },
+    "icon.png": {
+      "size": 688,
+      "sha256": "875409288093e067996887964266664fa41bdb5e35f67437203d7be35f7071a9"
+    },
+    "index.html": {
+      "size": 4016,
+      "sha256": "4784a8e1b7adbdbcb2ed88ddae4dbbc3824b721a1cc8513148490b553134e399"
+    },
+    "installer/__init__.py": {
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "installer/__main__.py": {
+      "size": 57,
+      "sha256": "371f987b47cd519d6983baa1080744b3e0adb8c10ab7beaae3da4a04127e9553"
+    },
+    "installer/application.py": {
+      "size": 7816,
+      "sha256": "3412a5cdccbbbd903081671713509b1f3aa810e2b133539aebf1175d0e59f873"
+    },
+    "installer/cli.py": {
+      "size": 6290,
+      "sha256": "bb353daef2298034cf33e67b86e15f93867290facdf6b474af086735f3c0899e"
+    },
+    "installer/errors.py": {
+      "size": 278,
+      "sha256": "01174e55244517513ed0a219dbe23a23e77461e4c0833e9d27c05a228f890bb1"
+    },
+    "installer/fullscreen.py": {
+      "size": 26902,
+      "sha256": "8adbec19027250a7f0285797915c00f9d0ba3c802c2d195ea4ae7ad2ab736bc7"
+    },
+    "installer/install_engine.py": {
+      "size": 8487,
+      "sha256": "0d8c879c017db389e32d606014f8ae41e0ce6a01b63fc7b54330d254685e41fa"
+    },
+    "installer/journal.py": {
+      "size": 2198,
+      "sha256": "cca9701bae0e0d18626d9c3351064d8963d5e289db5d3e212716429a5cfb656b"
+    },
+    "installer/plan.py": {
+      "size": 1930,
+      "sha256": "b26d5af2427ad9bb8d2e47eabb6fece2e2d2b59e662a8e9d93d13cd19e79d0de"
+    },
+    "installer/tests/test_application.py": {
+      "size": 2856,
+      "sha256": "8e963a4c3f7a9e4dd6dbad44b43dcbfec06136ddb782f9a4aa3bcb2247bad11f"
+    },
+    "installer/tests/test_engine.py": {
+      "size": 9884,
+      "sha256": "8538e8b8aa6eda7e33991834be3ced9484139bae9884e24acccbb10bdf15dbb5"
+    },
+    "installer/tests/test_fullscreen.py": {
+      "size": 8474,
+      "sha256": "b316774ade0b5936156051ff1f508821f1903670d65d2069adaf59984162ced7"
+    },
+    "installer/tests/test_legacy_recovery.py": {
+      "size": 1815,
+      "sha256": "5c1722dfc96bec6b21c2c50eaa59e32ffcbc7add3b4c910a916cdf428f376e4f"
+    },
+    "installer/tests/test_transport.py": {
+      "size": 3207,
+      "sha256": "1be63ea0e5e4f853f31f8fe1a553cf34199b0b17f4eb971ab7425c6b4448babe"
+    },
+    "installer/transport.py": {
+      "size": 7757,
+      "sha256": "77bed1f6745bb57384f7288b3d4ea7db59dba662ea9147b6d3cdbaa7a095ab23"
+    },
+    "installer/tui.py": {
+      "size": 5573,
+      "sha256": "acdc4b1e1d49a1e5f63f1ef1156c42e9987545850cc6801e3383568f6839e2f6"
+    },
+    "library.js": {
+      "size": 3717,
+      "sha256": "cb06a60ee324ef0e498d2a50016da88ff90b8d44623add2e2dc7b49f3562cfd3"
+    },
+    "package-lock.json": {
+      "size": 31769,
+      "sha256": "6d8ae04a509c5a675b28cc191648d708140c59078d6125a38347be04fce07b8b"
+    },
+    "package.json": {
+      "size": 917,
+      "sha256": "b4a41f0be518ef9b606a0ac076c575a6fce4db1c004334f282d74d594207e147"
+    },
+    "privacy/97-wiios-privacy": {
+      "size": 168,
+      "sha256": "909bc582012b3065abd1dccadc6c10d79ada74f3c81c490f7adc8d2e0d5b7fd1"
+    },
+    "privacy/apply.sh": {
+      "size": 2417,
+      "sha256": "2feb3f797b8874d59505cbeaf8336c496cf34504ade3625a049ce081ba995904"
+    },
+    "privacy/hosts.txt": {
+      "size": 230,
+      "sha256": "d9e91920987368e144b56d9a0485e5338626910a0c783f3d2cf6ac67f1ac9555"
+    },
+    "release/TUI-REBUILD-NOTES.md": {
+      "size": 1950,
+      "sha256": "518655c4b10bf192f385be05169c4ed072d84b8c43e50dd947089fc1e82476bb"
+    },
+    "release/WiiOS-webOS-v0.3.34-continued-IMPLEMENTATION.md": {
+      "size": 2797,
+      "sha256": "e4559214de29cf43719ed096eb1dc81d696dfb6a18b2a7309bdb0572bf04ebf7"
+    },
+    "release/build-manifest.json": {
+      "size": 13829,
+      "sha256": "f18c15ac18d110b82082613467c9a749881d8b22ca90ec45cced0fc8b02743d8"
+    },
+    "release/com.wiios.launcher_0.3.34_all.ipk": {
+      "size": 3039114,
+      "sha256": "da069cfd0ee4ca0c7141ac3dc4754bef07a3c5dc216203eb6ca78f5bd44e70c1"
+    },
+    "release/com.wiios.launcher_0.3.34_all.ipk.sha256": {
+      "size": 100,
+      "sha256": "214250f7802230d6cd0f06cb9f07e2a5c1f47383d36059023bd3acebf28cc5dc"
+    },
+    "release/wiios-installer.pyz": {
+      "size": 45130,
+      "sha256": "bbec753ff47d08e7ebab5fbecca633d2c2c8b39cf1ca1c670beb8685a76ec060"
+    },
+    "release/wiios-installer.pyz.sha256": {
+      "size": 86,
+      "sha256": "b380aa80c0abe06a40a99d1b1b3ac9e55668c8f8c395e1c2902ff0b2ff592bb7"
+    },
+    "requirements-dev.txt": {
+      "size": 14,
+      "sha256": "40f1cfe6dcc8dc9fa47b90a68e96f38c164be4dff6042a12d670842230e36a67"
+    },
+    "root-services/catalog.js": {
+      "size": 19434,
+      "sha256": "c913d15981e9ea31483c5249911735b2d85032056dbf45d4311b97c26012dc00"
+    },
+    "root-services/control.sh": {
+      "size": 1661,
+      "sha256": "dd7dd5847812e67fe815dd36a0edce33b0cff6efe32a448e8e9bfb9fc33e1f0e"
+    },
+    "root-services/metrics.js": {
+      "size": 4816,
+      "sha256": "0e69dd5b83e84a99814a4f64bdc4ab3e0b60cf1a9d96a2079a288ae99b90ea05"
+    },
+    "scripts/build.py": {
+      "size": 8560,
+      "sha256": "a787b27a9ec49f4e626279446a034cb2a682b63bb6a3803f00a35d87f684f81a"
+    },
+    "scripts/check_policy.py": {
+      "size": 3809,
+      "sha256": "09fccd98cec7ef355d9c80260e09b24ece973a3604e78c5960193a09c7a0abfa"
+    },
+    "scripts/check_source.cjs": {
+      "size": 1142,
+      "sha256": "e264fe9c692c53a63d8cda5bdb7d19f06ff726c13185bb74cf56e8552506d847"
+    },
+    "scripts/check_version.py": {
+      "size": 610,
+      "sha256": "a7fa700634df7d83e3059e98e8bde22999c636db11349991cdb136f31719b164"
+    },
+    "scripts/install_metrics.py": {
+      "size": 5572,
+      "sha256": "d1009c7cdfa49465c66207356a59cd1e76f0fa4352f049f2852dd0c507c6725d"
+    },
+    "scripts/sync_version.py": {
+      "size": 439,
+      "sha256": "a92f1fa9b025ec2eb8a2865273710ce0147375b790cde4ccf0870a947b60a06e"
+    },
+    "scripts/tv.py": {
+      "size": 6464,
+      "sha256": "8738b8fd87eb7b9d430ccc1af9360156da59c939bb7756b796aff0d73f686633"
+    },
+    "source-policy.json": {
+      "size": 863,
+      "sha256": "b8863722b02d6bc572e93afb26457fa9c54fd5fa11ec67800289784c6e21963e"
+    },
+    "stats.js": {
+      "size": 4101,
+      "sha256": "efba83e2111a32858cccf25392f91ceb0aa51190724114c8a1e43e7c4eb19a59"
+    },
+    "style.css": {
+      "size": 14450,
+      "sha256": "ca407476e52f3a34b74e21ebc1f56d4ce4f908047d3fb622213c6a11be3df54f"
+    },
+    "tests/catalog.test.cjs": {
+      "size": 1739,
+      "sha256": "c9f607be1ed35a4156e74c437a436f047e905b2edb8756a0169a7a3a441927cb"
+    },
+    "tests/motion.test.cjs": {
+      "size": 6096,
+      "sha256": "8ef1ce7ab801fe15421c3a2c5daaeb5185df12d7c766940e7b2491a04f20b567"
+    },
+    "tests/policy.test.cjs": {
+      "size": 860,
+      "sha256": "f1a7fbc3bc2900c60c8ac370d7241d03e7e751e6f840c0d5be928b2897600219"
+    },
+    "tests/test_distribution.py": {
+      "size": 3577,
+      "sha256": "34ba88f2de26594a6ad898882ec572696eaaee296b4213fc8f22dc8588621194"
+    },
+    "tests/test_package.py": {
+      "size": 2035,
+      "sha256": "91e46c9122080bf1e993e352aa7cc50a52bc5a821f4aeae56bd28c1a52c15ecf"
+    },
+    "tests/test_policy.py": {
+      "size": 1833,
+      "sha256": "893ad342ff8f701ce32030761ae411e57db631a8fa708d078333095afea1d3bc"
+    }
+  }
+}

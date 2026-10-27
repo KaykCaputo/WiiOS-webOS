@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        1
+      ]
+    },
+    "transactionId": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "deviceProfileDigest": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "mode": {
+      "enum": [
+        "app-only",
+        "home-replacement"
+      ]
+    },
+    "action": {
+      "enum": [
+        "install",
+        "update",
+        "uninstall"
+      ]
+    },
+    "adapter": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifactDigest": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "version": {
+      "type": "string"
+    },
+    "approvalDigest": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "target"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reverseOperations": {
+      "type": "array"
+    },
+    "expectedMounts": {
+      "type": "array"
+    },
+    "expectedHomeManifestDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trialTimeoutSeconds": {
+      "type": "integer"
+    },
+    "requiresRoot": {
+      "type": "boolean"
+    },
+    "requiresInteractiveApproval": {
+      "type": "boolean"
+    },
+    "profileId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trialNonce": {
+      "type": "string",
+      "pattern": "[a-f0-9]{32}"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "transactionId",
+    "deviceProfileDigest",
+    "mode",
+    "action",
+    "adapter",
+    "artifactDigest",
+    "version",
+    "approvalDigest",
+    "operations",
+    "reverseOperations",
+    "expectedMounts",
+    "expectedHomeManifestDigest",
+    "trialTimeoutSeconds",
+    "requiresRoot",
+    "requiresInteractiveApproval",
+    "profileId"
+  ],
+  "additionalProperties": false
+}
