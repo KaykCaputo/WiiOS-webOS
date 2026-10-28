@@ -436,7 +436,7 @@
     var markup = '<label for="ssap-address">TV IPv4 address (local network only)</label>' +
       '<input id="ssap-address" type="text" autocomplete="off" maxlength="15" value="' + escapeHtml(current) + '" placeholder="192.168.1.10">' +
       '<label><input id="ssap-secure" type="checkbox" checked> Secure WebSocket (WSS port 3001)</label>' +
-      '<p class="note">Pairing asks for permission on the TV. The client key is kept in the local WiiOS application storage. Wireless LAN requests may be unavailable on some webOS versions.</p>' +
+      '<p class="note">WSS is preferred. WS sends pairing traffic without transport encryption and should only be used on a trusted local network when WSS is unavailable. The client key is kept in local WiiOS application storage until Remove Pairing is selected.</p>' +
       option('ssap-remove', 'Remove Pairing', 'Delete the stored connection and client key');
     dialog('TV Catalog Pairing', 'Optional app discovery when the local helper and Luna are unavailable.', markup, 'Pair', function () {
       var address = $('ssap-address').value.trim();

@@ -80,5 +80,10 @@ jobs:
             echo "Release $TAG already exists; bump appinfo.json version for a new release."
             exit 0
           fi
-          gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
+          NOTES="docs/releases/${TAG}.md"
+          if [ -f "$NOTES" ]; then
+            gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
+          fi
 

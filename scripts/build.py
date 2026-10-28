@@ -3,6 +3,7 @@
 import argparse
 import gzip
 import hashlib
+from html.parser import HTMLParser
 import io
 import json
 from pathlib import Path
@@ -16,6 +17,36 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
+
+
+class LocalAssets(HTMLParser):
+    """Collect local script and stylesheet references from the application entry point."""
+
+    def __init__(self):
+        super().__init__()
+        self.paths = set()
+
+    def handle_starttag(self, tag, attributes):
+        values = dict(attributes)
+        reference = values.get('src') if tag == 'script' else values.get('href') if tag == 'link' else None
+        if not reference or reference.startswith(('#', '//')) or '://' in reference or reference.startswith('data:'):
+            return
+        path = reference.split('#', 1)[0].split('?', 1)[0]
+        if path.startswith('/') or '..' in Path(path).parts:
+            raise ValueError('Unsafe local asset reference in index.html: ' + reference)
+        if path:
+            self.paths.add(path)
+
+
+def validate_entrypoint_assets(files):
+    """Reject a package when index.html references a local asset that will not be shipped."""
+
+    parser = LocalAssets()
+    parser.feed(files['index.html'].decode('utf-8'))
+    missing = sorted(parser.paths.difference(files))
+    if missing:
+        raise FileNotFoundError('index.html references unpackaged local assets: ' + ', '.join(missing))
+    return parser.paths
 
 def compressed_tar(files):
     buffer = io.BytesIO()
@@ -82,6 +113,7 @@ def build(root=ROOT, output=None):
             files[relative] = path.read_bytes()
     files['audio-assets.js'] = ('window.WII_AUDIO_ASSETS = ' + json.dumps(manifest, sort_keys=True) + ';\n' +
                                 'window.WIIOS_VERSION = ' + json.dumps(info['version']) + ';\n').encode()
+    validate_entrypoint_assets(files)
 
     (root / 'audio-assets.js').write_bytes(files['audio-assets.js'])
     stage = output / 'app'

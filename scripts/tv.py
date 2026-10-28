@@ -10,14 +10,11 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-BUNDLE = ROOT / 'fullhome-integration' / 'bundle'
 PRIVACY = ROOT / 'privacy'
 BASE = '/var/lib/webosbrew/wiios-fullhome-diag/diag-3e891511b377'
 PRIV_BASE = '/var/lib/webosbrew/wiios-privacy'
 HOME_HOOK = '/var/lib/webosbrew/init.d/99-wiios-fullhome'
 PRIV_HOOK = '/var/lib/webosbrew/init.d/97-wiios-privacy'
-HOME_FILES = ('main.qml', 'UIController.qml', 'activate.sh', 'common.sh', 'rollback.sh', 'config.sh', 'manifest.json', 'boot.sh', 'launch-on-boot.sh', 'wake-monitor.sh', 'disable-startup.sh', '99-wiios-fullhome', 'persistent.sha256')
-
 def remote(host, command, data=None, timeout=45):
     result = subprocess.run(['ssh', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=7', 'root@' + host, command], input=data, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
     output = (result.stdout + result.stderr).decode(errors='replace').strip()

@@ -1,5 +1,7 @@
 from hashlib import sha256
-from importlib.resources import files
+from pathlib import Path
+import tempfile
+from unittest.mock import patch
 import json
 from types import SimpleNamespace
 import unittest
@@ -10,20 +12,23 @@ from compatibility.probe import probe
 from compatibility.resolver import resolve
 
 
+RECOVERY_NAMES = ('common.sh', 'rollback.sh', 'config.sh',
+                  'disable-startup.sh', HOOK)
+RECOVERY_FIXTURES = {
+    name: '#!/bin/sh\n# synthetic recovery fixture: ' + name + '\n'
+    for name in RECOVERY_NAMES
+}
+
+
 class LegacyDevice:
     kind = 'root-ssh'
     connection = SimpleNamespace(endpoint='root@192.0.2.44:22')
 
     def __init__(self):
-        metadata = json.loads(files('home.operations').joinpath('legacy-recovery.json').read_text())
-        bundle = files('home.operations').joinpath('legacy-recovery.json')
-        self.values = {}
-        for name in metadata['files']:
-            if name == HOOK:
-                source = bundle.parent.parent.joinpath('..', 'fullhome-integration', 'bundle', name)
-            else:
-                source = bundle.parent.parent.joinpath('..', 'fullhome-integration', 'bundle', name)
-            self.values[BASE + '/' + name] = source.read_text()
+        self.values = {
+            BASE + '/' + name: content
+            for name, content in RECOVERY_FIXTURES.items()
+        }
         self.values['/var/lib/webosbrew/init.d/' + HOOK] = self.values[BASE + '/' + HOOK]
         self.values[BASE + '/state/status'] = 'ACTIVE\n'
         self.values[BASE + '/state/namespace'] = 'mnt:[1]\n'
@@ -92,6 +97,22 @@ class LegacyDevice:
 
 
 class LegacyOwnershipTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        metadata = {
+            'schemaVersion': 1,
+            'transactionId': 'diag-3e891511b377',
+            'base': BASE,
+            'files': {name: sha256(content.encode()).hexdigest()
+                      for name, content in RECOVERY_FIXTURES.items()},
+        }
+        (root / 'legacy-recovery.json').write_text(json.dumps(metadata))
+        mock_resources = patch('compatibility.legacy.files', return_value=root)
+        mock_resources.start()
+        self.addCleanup(mock_resources.stop)
+
     def test_verified_legacy_mounts_are_owned_not_foreign(self):
         device = LegacyDevice()
         report = inspect_legacy(device, parse_mountinfo(device.values['/proc/self/mountinfo']), 'mnt:[1]', [HOOK])
@@ -136,8 +157,7 @@ class LegacyOwnershipTests(unittest.TestCase):
     def test_verified_privacy_hook_is_not_home_conflict(self):
         device = LegacyDevice()
         from compatibility.legacy import PRIVACY_HOOK
-        source = files('home.operations').joinpath('legacy-recovery.json').parent.parent.joinpath(
-            '..', 'privacy', PRIVACY_HOOK)
+        source = Path(__file__).resolve().parents[2] / 'privacy' / PRIVACY_HOOK
         device.values['/var/lib/webosbrew/init.d/' + PRIVACY_HOOK] = source.read_text()
         original = device.execute
         def execute(command):

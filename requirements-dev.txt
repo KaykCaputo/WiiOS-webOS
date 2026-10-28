@@ -1,1 +1,1 @@
-bashlex==0.18
+# Development policy checks use only the Python standard library.

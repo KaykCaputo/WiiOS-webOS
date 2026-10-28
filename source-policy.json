@@ -7,18 +7,14 @@
     "docs/media/",
     "assets/"
   ],
-  "frozenVendorFiles": {
-    "fullhome-integration/bundle/main.qml": {
-      "sha256": "ac7901e140f8ffc8f2c0c123b96bd4b9f406116f4936dbf876a37b01084943a5",
-      "reason": "Legacy LG-derived QML retained byte-for-byte; full vendor-source policy review is pending."
-    },
-    "fullhome-integration/bundle/UIController.qml": {
-      "sha256": "ccc1090479b4918742fea920ad2298258bb9c6145d072260fbc956bab270f775",
-      "reason": "Legacy LG-derived QML retained byte-for-byte; full vendor-source policy review is pending."
-    }
-  },
+  "forbiddenFiles": [
+    "fullhome-integration/bundle/main.qml",
+    "fullhome-integration/bundle/UIController.qml"
+  ],
+  "forbiddenExtensions": [
+    ".qml"
+  ],
   "shellFiles": [
-    "fullhome-integration/bundle/99-wiios-fullhome",
     "privacy/97-wiios-privacy"
   ],
   "languageTestFiles": [

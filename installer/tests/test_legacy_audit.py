@@ -1,9 +1,9 @@
 import json
-from importlib.resources import files
 from pathlib import Path
 import unittest
 
 from home.operations.legacy_audit import audit_legacy_recovery
+from legacy_fixture import RECOVERY_FILES, recovery_metadata, patch_recovery_metadata
 from installer.errors import InstallerError
 
 
@@ -11,7 +11,7 @@ class ReadOnlyLegacyDevice:
     kind = 'root-ssh'
 
     def __init__(self):
-        self.metadata = json.loads(files('home.operations').joinpath('legacy-recovery.json').read_text())
+        self.metadata = recovery_metadata()
         self.commands = []
         self.corrupt = False
         self.same_boot = True
@@ -41,7 +41,7 @@ class ReadOnlyLegacyDevice:
             return 'boot-known\n' if self.same_boot else 'boot-other\n'
         name = Path(path).name
         if name in self.metadata['files']:
-            data = (Path(__file__).resolve().parents[2] / 'fullhome-integration' / 'bundle' / name).read_text()
+            data = RECOVERY_FILES[name]
             return data + 'modified' if self.corrupt and name == 'rollback.sh' else data
         raise AssertionError('Unexpected path: ' + path)
 
@@ -55,6 +55,9 @@ def installed_profile():
 
 
 class ReadOnlyRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        patch_recovery_metadata(self, 'home.operations.legacy_audit')
+
     def test_healthy_preflight_reads_without_modifying_tv(self):
         device = ReadOnlyLegacyDevice()
         result = audit_legacy_recovery(device, installed_profile())

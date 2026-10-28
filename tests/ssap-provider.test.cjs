@@ -5,8 +5,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function environment() {
-  const saved = {};
+function environment(initial) {
+  const saved = Object.assign({}, initial || {});
   const outbound = [];
   const storage = {
     getItem(key) {return saved[key] || null;},
@@ -17,7 +17,7 @@ function environment() {
     constructor(url) {this.url = url; outbound.push(['connect', url]); Socket.last = this;}
     send(json) {
       const packet = JSON.parse(json);
-      outbound.push([packet.type, packet.uri || packet.id]);
+      outbound.push([packet.type, packet.uri || packet.id, packet.payload && packet.payload['client-key']]);
       if (packet.type === 'register') {
         this.onmessage({data: JSON.stringify({type: 'registered', payload: {'client-key': 'approved-key'}})});
       } else if (packet.type === 'request') {
@@ -64,4 +64,22 @@ test('SSAP supports an explicitly selected secure transport', () => {
   window.WiiSSAP.configure('10.10.10.10', true);
   window.WiiSSAP.list(() => {});
   assert.equal(outbound[0][1], 'wss://10.10.10.10:3001');
+});
+
+test('SSAP reconnects with a stored secure client key', () => {
+  const stored = JSON.stringify({host: '192.168.1.50', transport: 'wss', key: 'existing-key'});
+  const {window, outbound, Socket} = environment({'wiios.ssap.pairing.v1': stored});
+  assert.equal(window.WiiSSAP.configured(), true);
+  window.WiiSSAP.list(() => {});
+  Socket.last.onopen();
+  assert.equal(outbound[0][1], 'wss://192.168.1.50:3001');
+  assert.equal(outbound[1][2], 'existing-key');
+});
+
+test('SSAP ignores an unsafe stored endpoint', () => {
+  const stored = JSON.stringify({host: '203.0.113.10', transport: 'wss', key: 'existing-key'});
+  const {window, outbound} = environment({'wiios.ssap.pairing.v1': stored});
+  assert.equal(window.WiiSSAP.configured(), false);
+  window.WiiSSAP.list(() => {});
+  assert.equal(outbound.length, 0);
 });
