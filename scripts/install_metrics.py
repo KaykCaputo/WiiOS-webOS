@@ -14,7 +14,7 @@ HOOK_DATA = ('#!/bin/sh\nexec sh ' + BASE + '/control.sh start\n').encode()
 
 def main():
     parser = argparse.ArgumentParser(description='Install or update the local WiiOS app/images and metrics helper over root SSH.')
-    parser.add_argument('--host', default='192.168.68.51')
+    parser.add_argument('--host', required=True, help='Target TV hostname or IPv4 address')
     parser.add_argument('--remove', action='store_true', help='Stop this collector and remove its own startup hook')
     args = parser.parse_args()
     if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]*', args.host):
