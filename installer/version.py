@@ -1,0 +1,2 @@
+INSTALLER_VERSION = '0.3.38-compat-r10.4'
+INSTALLER_BUILD = '2026-10-28-compat-r10.4'

@@ -67,6 +67,27 @@ class Artifact:
         except (ValueError, KeyError, UnicodeError, tarfile.TarError, OSError) as error:
             raise InstallerError('INVALID_ARTIFACT', 'The file is not a supported WiiOS application IPK.', 2) from error
 
+    def app_payload_checksums(self):
+        raw = self.path.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != self.digest:
+            raise InstallerError('ARTIFACT_CHANGED', 'The selected IPK changed.', 8)
+        members, position = {}, 8
+        while position < len(raw):
+            header = raw[position:position + 60]
+            name, size = header[:16].decode().strip().rstrip('/'), int(header[48:58])
+            members[name] = raw[position + 60:position + 60 + size]
+            position += 60 + size + size % 2
+        expected = {}
+        with tarfile.open(fileobj=io.BytesIO(members['data.tar.gz']), mode='r:gz') as archive:
+            prefix = 'usr/palm/applications/' + APP_ID + '/'
+            for item in archive:
+                name = item.name.removeprefix('./')
+                if item.isfile() and name.startswith(prefix):
+                    relative = name[len(prefix):]
+                    if relative != 'appinfo.json':
+                        expected[relative] = hashlib.sha256(archive.extractfile(item).read()).hexdigest()
+        return expected
+
     def recheck(self):
         if hashlib.sha256(self.path.read_bytes()).hexdigest() != self.digest:
             raise InstallerError('ARTIFACT_CHANGED', 'The package changed after planning.', 8)

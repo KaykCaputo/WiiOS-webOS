@@ -1,10 +1,13 @@
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import sys
+import zipfile
 
 from installer.application import Artifact
 from installer.errors import InstallerError
+from installer.version import INSTALLER_VERSION, INSTALLER_BUILD
 from installer.install_engine import InstallEngine
 from installer.journal import Journal
 from installer.transport import Connection, DeveloperModeTransport, RootSSHTransport, trust_host
@@ -13,7 +16,23 @@ from compatibility.schema import validate_document
 
 def parser():
     result = argparse.ArgumentParser(prog='wiios-installer', description='Install WiiOS or inspect Home replacement compatibility.')
+    result.add_argument('--version', action='version', version=f'WiiOS Installer {INSTALLER_VERSION} ({INSTALLER_BUILD})')
     commands = result.add_subparsers(dest='command', required=True)
+    commands.add_parser('build-info', help='Display the exact installer file and confirm full-screen TUI modules')
+    bundle = commands.add_parser('prepare-home-bundle', help='Prepare a read-only, offline Home overlay candidate')
+    bundle.add_argument('--app-dir', type=Path, required=True)
+    bundle.add_argument('--stock-manifest', type=Path, required=True)
+    bundle.add_argument('--stock-sha256', required=True)
+    bundle.add_argument('--output', type=Path, required=True)
+    qualify = commands.add_parser('qualification-template', help='Generate an unapproved device test checklist from diagnostics')
+    qualify.add_argument('--diagnostics', type=Path, required=True)
+    qualify.add_argument('--output', type=Path, required=True)
+    reference = commands.add_parser('detection-reference', help='Save a detection-only QML reference from diagnostics')
+    reference.add_argument('--diagnostics', type=Path, required=True)
+    reference.add_argument('--output', type=Path, required=True)
+    comparison = commands.add_parser('check-detection-reference', help='Compare a read-only diagnostic report with a QML reference')
+    comparison.add_argument('--reference', type=Path, required=True)
+    comparison.add_argument('--diagnostics', type=Path, required=True)
     connection = argparse.ArgumentParser(add_help=False)
     connection.add_argument('--host')
     connection.add_argument('--transport', choices=['developer-mode', 'root-ssh'], default='developer-mode')
@@ -33,8 +52,11 @@ def parser():
         if name in ('install', 'update'):
             command.add_argument('--approve-plan')
             command.add_argument('--plan-file', type=Path)
+        if name == 'tui':
+            command.add_argument('--text-mode', action='store_true', help='Use the explicit line-oriented installer instead of the full-screen TUI')
         if name == 'plan':
             command.add_argument('--output', type=Path)
+            command.add_argument('--new-trial', action='store_true', help='Generate a separate approval nonce for a second Home trial')
         if name == 'diagnose':
             command.add_argument('--export', type=Path, required=True)
         if name == 'reconcile':
@@ -43,6 +65,28 @@ def parser():
             command.add_argument('--fingerprint', required=True)
     home = commands.add_parser('home').add_subparsers(dest='home_command', required=True)
     home.add_parser('status', parents=[connection])
+    home.add_parser('audit-legacy-recovery', parents=[connection], help='Read-only verification of existing legacy QML rollback readiness')
+    trial = home.add_parser('trial', parents=[connection])
+    trial.add_argument('--plan-file', type=Path, required=True)
+    trial.add_argument('--approve-plan', required=True)
+    trial.add_argument('--home-bundle', type=Path, required=True)
+    trial.add_argument('--sam-protocol', choices=['sam-block-release-v1'])
+    trial.add_argument('--native-contract', choices=['register-app-v2', 'register-native-app-v1'])
+    trial.add_argument('--wam-launch', type=Path)
+    verification = home.add_parser('verify', parents=[connection])
+    verification.add_argument('--transaction', required=True)
+    verification.add_argument('--home-key-confirmed', action='store_true')
+    persist = home.add_parser('persist', parents=[connection])
+    persist.add_argument('--transaction', required=True)
+    persist.add_argument('--rehearsal', required=True)
+    persist.add_argument('--approve-plan', required=True)
+    persist.add_argument('--home-key-confirmed', action='store_true')
+    finalize = home.add_parser('finalize', parents=[connection])
+    finalize.add_argument('--transaction', required=True)
+    finalize.add_argument('--home-key-confirmed', action='store_true')
+    stock = home.add_parser('confirm-stock', parents=[connection])
+    stock.add_argument('--transaction', required=True)
+    stock.add_argument('--lg-home-confirmed', action='store_true')
     restore = home.add_parser('restore', parents=[connection])
     restore.add_argument('--transaction', required=True)
     return result
@@ -74,6 +118,10 @@ def dispatch(args, engine):
         return trust_host(engine.transport.connection, args.fingerprint)
     if args.command == 'plan':
         plan = engine.plan(mode=args.mode)
+        if args.mode == 'home' and args.new_trial:
+            import secrets
+            from installer.plan import fresh_trial
+            plan = fresh_trial(plan, secrets.token_hex(16))
         if args.output:
             write_report(args.output, plan)
         return plan
@@ -97,29 +145,95 @@ def dispatch(args, engine):
     if args.command == 'home':
         if args.home_command == 'status':
             return engine.diagnose()
+        if args.home_command == 'audit-legacy-recovery':
+            from home.operations.legacy_audit import audit_legacy_recovery
+            return audit_legacy_recovery(engine.transport, engine.probe())
+        if args.home_command == 'trial':
+            launch_payload = json.loads(args.wam_launch.read_text()) if args.wam_launch else None
+            return engine.home_trial(json.loads(args.plan_file.read_text()), args.approve_plan,
+                                     args.home_bundle, args.sam_protocol, args.native_contract, launch_payload)
+        if args.home_command == 'persist':
+            return engine.home_trial_state(args.transaction, 'persist', args.home_key_confirmed,
+                                           args.rehearsal, args.approve_plan)
+        if args.home_command == 'finalize':
+            return engine.home_trial_state(args.transaction, 'finalize', args.home_key_confirmed)
+        if args.home_command == 'confirm-stock':
+            return engine.home_trial_state(args.transaction, 'confirm-stock', args.lg_home_confirmed)
+        if args.home_command == 'verify':
+            return engine.home_trial_state(args.transaction, 'verify', args.home_key_confirmed)
         return engine.restore(args.transaction)
     if args.command == 'tui':
-        import sys
-        if sys.stdin.isatty() and sys.stdout.isatty():
-            try:
-                from installer.fullscreen import run_fullscreen
-                return run_fullscreen(engine)
-            except ImportError:
-                pass
-        from installer.tui import run
-        return run(engine)
+        if args.text_mode:
+            from installer.tui import run
+            return run(engine)
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            raise InstallerError('TERMINAL_REQUIRED', 'The full-screen interface needs a real terminal. Run with --text-mode for an explicit line-oriented menu.', 2)
+        try:
+            from installer.fullscreen import run_fullscreen
+        except ImportError as error:
+            raise InstallerError('TUI_UNAVAILABLE', 'Full-screen terminal support is unavailable. Run with --text-mode to use the legacy menu.', 2) from error
+        return run_fullscreen(engine)
     raise InstallerError('INVALID_COMMAND', 'Unknown command.', 2)
+
+
+def build_info():
+    executable = Path(sys.argv[0]).resolve()
+    packaged = zipfile.is_zipfile(executable)
+    module_paths = {'installer/fullscreen.py', 'installer/cli.py', 'installer/version.py'}
+    if packaged:
+        with zipfile.ZipFile(executable) as archive:
+            available = module_paths.issubset(archive.namelist())
+    else:
+        available = all((Path(__file__).resolve().parents[1] / name).is_file() for name in module_paths)
+    return {
+        'ok': available,
+        'installerVersion': INSTALLER_VERSION,
+        'installerBuild': INSTALLER_BUILD,
+        'executedFile': str(executable),
+        'sha256': hashlib.sha256(executable.read_bytes()).hexdigest() if packaged else None,
+        'fullscreenTuiAvailable': available,
+        'legacyMenuDefault': False,
+    }
 
 
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
+        if args.command == 'prepare-home-bundle':
+            from home.bundle import prepare_web_home
+            result = prepare_web_home(args.app_dir, args.stock_manifest.read_bytes(), args.stock_sha256, args.output)
+            print(json.dumps({'ok': True, 'bundle': str(args.output), 'manifest': result}, indent=2))
+            return 0
+        if args.command == 'qualification-template':
+            from compatibility.qualification import qualification_template
+            result = qualification_template(json.loads(args.diagnostics.read_text()))
+            write_report(args.output, result)
+            print(json.dumps({'ok': True, 'report': str(args.output), 'qualification': result['qualification']}, indent=2))
+            return 0
+        if args.command == 'detection-reference':
+            from compatibility.detection_reference import create_detection_reference
+            reference = create_detection_reference(json.loads(args.diagnostics.read_text()))
+            write_report(args.output, reference)
+            print(json.dumps({'ok': True, 'report': str(args.output), 'qualification': reference['qualification'],
+                              'takeoverApproved': False}, indent=2))
+            return 0
+        if args.command == 'check-detection-reference':
+            from compatibility.detection_reference import compare_detection_reference
+            result = compare_detection_reference(json.loads(args.reference.read_text()),
+                                                 json.loads(args.diagnostics.read_text()))
+            print(json.dumps(result, indent=2))
+            return 0 if result['ok'] else 5
+        if args.command == 'build-info':
+            result = build_info()
+            print(json.dumps(result, indent=2))
+            return 0 if result['ok'] else 3
         if args.command == 'tui':
             from installer.tui import configure_connection
             configure_connection(args)
         result = dispatch(args, create_engine(args))
-        print(json.dumps(result, indent=2))
-        return 0
+        if args.command != 'tui':
+            print(json.dumps(result, indent=2))
+        return 0 if result.get('ok', True) else 5
     except InstallerError as error:
         print(json.dumps(error.result()), file=sys.stderr)
         return error.exit_code

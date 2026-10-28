@@ -1,6 +1,6 @@
 {
   "name": "wiios-launcher",
-  "version": "0.3.34",
+  "version": "0.3.38",
   "private": true,
   "description": "Wii-inspired launcher for LG webOS TVs",
   "scripts": {

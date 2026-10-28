@@ -23,7 +23,7 @@ class DistributionTests(unittest.TestCase):
                                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
             for name in ('appinfo.json', 'package.json', 'package-lock.json', 'index.html',
                          'style.css', 'bridge.js', 'channels.js', 'library.js', 'artwork.js',
-                         'audio.js', 'stats.js', 'app.js', 'icon.png', 'LICENSE', 'NOTICE'):
+                         'audio.js', 'stats.js', 'ssap-provider.js', 'app.js', 'home-runtime.js', 'icon.png', 'LICENSE', 'NOTICE'):
                 shutil.copy2(source / name, root / name)
             output = root / 'dist'
             with redirect_stdout(io.StringIO()):

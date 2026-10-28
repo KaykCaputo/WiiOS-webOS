@@ -6,6 +6,7 @@ from threading import Thread
 from textwrap import wrap
 
 from installer.errors import InstallerError
+from installer.version import INSTALLER_VERSION
 
 
 MENU = (
@@ -18,6 +19,9 @@ MENU = (
     ('7', 'Export diagnostics', 'Save a device and compatibility report to your computer.'),
     ('8', 'Launch WiiOS', 'Request that LG webOS start the installed WiiOS application.'),
     ('9', 'Reconcile installation', 'Verify and close a previously interrupted installation.'),
+    ('a', 'Verify Home trial', 'Confirm firmware health and the physical Home key during a temporary trial.'),
+    ('b', 'Enable guarded boot', 'Requires another independently restored trial and explicit approval.'),
+    ('c', 'Finalize guarded boot', 'After restarting the TV, confirm the Home key and finish the boot trial.'),
     ('0', 'Exit', 'Close the installer without making additional changes.'),
 )
 
@@ -42,6 +46,11 @@ def summary(value):
             'Home implementation: ' + str(home.get('implementation') or 'Unknown'),
             'App eligibility: ' + str(decision.get('appStatus') or 'Unknown'),
             'Home status: ' + str(decision.get('homeStatus') or 'Not qualified'),
+            'WiiOS Home ownership: ' + str(home.get('ownershipStatus') or 'Unknown'),
+            'Home assessment: ' + ', '.join(decision.get('reasonCodes') or ['No blocking reason']),
+            'Ownership check: ' + str(home.get('ownershipFailureCheck') or 'No ownership check failure'),
+            'Foreign Home mounts: ' + str(len(home.get('foreignMounts', []))),
+            'Conflicting startup hooks: ' + str(len(home.get('conflictingHooks', []))),
             'Pending transactions: ' + str(len(value.get('pendingTransactions', []))),
         ]
     pairs = [('ok', 'Outcome'), ('state', 'State'), ('version', 'Version'),
@@ -244,7 +253,7 @@ def render(screen, model, endpoint='', artifact=''):
         curses.curs_set(1 if model.page == 'input' else 0)
     except curses.error:
         pass
-    put(screen, 0, 2, 'WiiOS  /  LG webOS Installer', width - 4, curses.A_BOLD)
+    put(screen, 0, 2, f'WiiOS Installer {INSTALLER_VERSION}  /  LG webOS', width - 4, curses.A_BOLD)
     put(screen, 1, 2, endpoint, width - 4)
     horizontal(screen, 2)
     content_top, content_bottom = 4, height - 4
@@ -323,7 +332,7 @@ def render(screen, model, endpoint='', artifact=''):
                 row += 1
     horizontal(screen, height - 3)
     hints = {
-        'menu': 'Up/Down  Select: Enter  Direct: 0-9  Help: F1  Exit: Esc',
+        'menu': 'Up/Down  Select: Enter  Direct: 0-9/A-C  Help: F1  Exit: Esc',
         'options': 'Up/Down  Select: Enter  Back: Esc',
         'input': 'Type or paste  Edit: arrows/Home/End  Clear: Ctrl+U  Confirm: Enter  Cancel: Esc',
         'plan': 'Review the summary  Continue: A/Enter  Raw plan: D  Cancel: Esc',
@@ -349,6 +358,8 @@ class TerminalController:
         self.plan = None
         self.report = None
         self.options = []
+        self.home_transaction = None
+        self.home_rehearsal = None
         self.completed = False
         self.output = {'ok': True, 'state': 'CLOSED'}
 
@@ -408,14 +419,18 @@ class TerminalController:
                 'Press A to approve this plan or Esc to return without changes.',
             ]
             self.model.show('plan', 'Installation plan', lines, value)
-        elif token == 'apply':
-            self.model.show('result', 'Installation result', summary(value), value)
+        elif token in ('apply', 'home-trial', 'home-verify', 'home-persist', 'home-finalize'):
+            self.model.show('result', 'Home operation result' if token != 'apply' else 'Installation result', summary(value), value)
         elif token == 'diagnose':
             self.report = value
             self.model.show('result', 'Compatibility report', summary(value), value)
         elif token == 'export':
             self.model.show('result', 'Diagnostics exported', summary(value), value)
-        elif token == 'restore':
+        elif token == 'restore' and value.get('state') == 'STOCK_FILES_RESTORED':
+            self.home_transaction = value['transactionId']
+            self.model.input('Verify original LG Home', 'Type LG HOME VERIFIED', 'stock-home-confirm',
+                             'Open LG Home using the physical remote and verify navigation and applications first.', 32)
+        elif token in ('restore', 'stock-home-confirm'):
             self.model.show('result', 'LG Home restoration', summary(value), value)
         elif token == 'uninstall':
             self.model.show('result', 'Uninstallation result', summary(value), value)
@@ -435,9 +450,15 @@ class TerminalController:
 
     def request_plan(self):
         action = self.pending_action
-        self.perform('plan', 'Inspecting firmware and preparing an installation plan',
-                     lambda: self.engine.plan(mode='home' if action == '3' else 'app',
-                                              action='update' if action == '4' else 'install'))
+        def create_plan():
+            proposal = self.engine.plan(mode='home' if action == '3' else 'app',
+                                        action='update' if action == '4' else 'install')
+            if proposal['mode'] == 'home-replacement' and self.engine.journal.path(proposal['transactionId']).exists():
+                import secrets
+                from installer.plan import fresh_trial
+                proposal = fresh_trial(proposal, secrets.token_hex(16))
+            return proposal
+        self.perform('plan', 'Inspecting firmware and preparing an installation plan', create_plan)
 
     def choose(self, number):
         if number == '0':
@@ -469,6 +490,15 @@ class TerminalController:
             self.perform('launch', 'Launching WiiOS on the TV', self.engine.application.launch)
         elif number == '9':
             self.perform('reconcile-list', 'Checking interrupted installations', self.engine.reconcile)
+        elif number == 'a':
+            self.model.input('Verify Home trial', 'Temporary transaction ID', 'home-verify-id',
+                             'Only confirm the Home key if you actually pressed it on the TV.', 128)
+        elif number == 'b':
+            self.model.input('Enable guarded Home boot', 'Live trial transaction ID', 'home-persist-id',
+                             'Requires a separate successful restoration rehearsal of the exact firmware.', 128)
+        elif number == 'c':
+            self.model.input('Finalize guarded Home boot', 'Pending transaction ID', 'home-finalize-id',
+                             'Use only after the TV has restarted and the physical Home key worked.', 128)
 
     def submit(self, token, value):
         if token == 'trust':
@@ -493,8 +523,85 @@ class TerminalController:
                 self.model.show('result', 'Installation cancelled',
                                 ['Approval phrase did not match. No installation changes were made.'])
                 return
-            self.perform('apply', 'Applying the approved plan',
-                         lambda: self.engine.apply(self.plan, self.plan['approvalDigest']))
+            if self.plan['mode'] == 'home-replacement':
+                self.model.input('Temporary Home trial', 'Prepared Home bundle directory', 'home-bundle',
+                                 'A tested independent recovery route and exact approved firmware are mandatory.', 512)
+            else:
+                self.perform('apply', 'Applying the approved plan',
+                             lambda: self.engine.apply(self.plan, self.plan['approvalDigest']))
+        elif token == 'home-bundle':
+            if not value:
+                self.model.menu('Home trial cancelled.')
+                return
+            self.home_bundle = str(Path(value).expanduser())
+            from compatibility.resolver import load_verified
+            profile = next((entry for entry in load_verified() if entry['profileId'] == self.plan['profileId']), None)
+            if not profile:
+                self.model.show('error', 'Unqualified Home profile', ['No exact approved profile was found.'])
+                return
+            self.home_qualification = profile['homeReplacement']
+            if self.plan['adapter'] == 'native-home-standin':
+                self.model.input('Native Home lifecycle', 'Approved WAM payload JSON file', 'home-wam',
+                                 'The JSON payload must match the exact qualified firmware fingerprint.', 512)
+            else:
+                self.perform('home-trial', 'Running a time-limited Home trial',
+                             lambda: self.engine.home_trial(self.plan, self.plan['approvalDigest'],
+                                 self.home_bundle, self.home_qualification.get('samProtocol')))
+        elif token == 'home-wam':
+            if not value:
+                self.model.menu('Native Home trial cancelled.')
+                return
+            def launch_native():
+                payload = json.loads(Path(value).expanduser().read_text())
+                return self.engine.home_trial(self.plan, self.plan['approvalDigest'], self.home_bundle,
+                    native_contract=self.home_qualification.get('nativeContract'), launch_payload=payload)
+            self.perform('home-trial', 'Running a time-limited native Home trial', launch_native)
+        elif token in ('home-verify-id', 'home-persist-id', 'home-finalize-id'):
+            if not value:
+                self.model.menu('Home operation cancelled.')
+                return
+            self.home_transaction = value
+            if token == 'home-persist-id':
+                self.model.input('Restoration rehearsal', 'Separate restored transaction ID', 'home-rehearsal',
+                                 'This transaction must prove the original LG Home was restored.', 128)
+            else:
+                self.model.input('Physical Home confirmation', 'Type HOME KEY VERIFIED',
+                                 'home-verify-confirm' if token == 'home-verify-id' else 'home-finalize-confirm',
+                                 'Confirm this only after pressing Home on the physical remote.', 32)
+        elif token == 'home-rehearsal':
+            if not value:
+                self.model.menu('Guarded persistence cancelled.')
+                return
+            self.home_rehearsal = value
+            self.model.input('Enable persistent Home', 'Type ENABLE BOOT', 'home-persist-confirm',
+                             'The boot hook will be guarded. Reboot verification is still mandatory.', 32)
+        elif token == 'home-verify-confirm':
+            if value != 'HOME KEY VERIFIED':
+                self.model.menu('Physical Home confirmation was not provided.')
+                return
+            self.perform('home-verify', 'Verifying temporary Home operation',
+                         lambda: self.engine.home_trial_state(self.home_transaction, 'verify', True))
+        elif token == 'home-persist-confirm':
+            if value != 'ENABLE BOOT':
+                self.model.menu('Persistent Home installation cancelled.')
+                return
+            def persist():
+                approved = self.engine.journal.read(self.home_transaction)['plan']['approvalDigest']
+                return self.engine.home_trial_state(self.home_transaction, 'persist', True,
+                                                    self.home_rehearsal, approved)
+            self.perform('home-persist', 'Enabling guarded Home startup', persist)
+        elif token == 'home-finalize-confirm':
+            if value != 'HOME KEY VERIFIED':
+                self.model.menu('Boot verification was not confirmed.')
+                return
+            self.perform('home-finalize', 'Verifying Home after reboot',
+                         lambda: self.engine.home_trial_state(self.home_transaction, 'finalize', True))
+        elif token == 'stock-home-confirm':
+            if value != 'LG HOME VERIFIED':
+                self.model.menu('Files are restored. Operational LG Home verification is still pending.')
+                return
+            self.perform('stock-home-confirm', 'Verifying original LG Home',
+                         lambda: self.engine.home_trial_state(self.home_transaction, 'confirm-stock', True))
         elif token == 'restore-id':
             if not value:
                 self.model.menu('Home restoration cancelled.')
@@ -559,6 +666,8 @@ def session(screen, engine):
     controller = TerminalController(engine)
     screen.keypad(True)
     screen.timeout(100)
+    screen.clear()
+    screen.clearok(True)
     controller.start()
     while not controller.completed:
         controller.poll()
@@ -567,6 +676,10 @@ def session(screen, engine):
         try:
             key = screen.get_wch()
         except curses.error:
+            continue
+        if key == curses.KEY_RESIZE:
+            screen.clear()
+            screen.clearok(True)
             continue
         if key == curses.KEY_F1 and controller.model.page != 'input':
             controller.dispatch_key('?')

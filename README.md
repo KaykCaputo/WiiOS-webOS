@@ -28,13 +28,13 @@ Before connecting to your TV, confirm that the current installer is being execut
 python3 ./wiios-installer.pyz --version
 ```
 
-Expected output for the TUI r3 release:
+Expected output for the compatibility installer r10.4:
 
 ```text
-WiiOS Installer 0.3.34-tui-r3 (2026-10-27-r3)
+WiiOS Installer 0.3.38-compat-r10.4 (2026-10-28-compat-r10.4)
 ```
 
-If this command reports an unknown option or requires a subcommand, replace the old `.pyz` with the latest release file. You can also run the uniquely named `wiios-installer-tui-r3.pyz` from the same release without renaming it.
+If this command reports an unknown option or requires a subcommand, replace the old `.pyz` with the latest release file. You can also run the uniquely named `wiios-installer.pyz` from the same release without renaming it.
 
 ### Developer Mode SSH
 
@@ -48,7 +48,7 @@ python3 ./wiios-installer.pyz tui \
   --port 9922 \
   --identity DEV_KEY \
   --known-hosts "$HOME/.ssh/known_hosts" \
-  --ipk ./com.wiios.launcher_0.3.34_all.ipk
+  --ipk ./com.wiios.launcher_0.3.38_all.ipk
 ```
 
 The username and port are examples. Use the credentials configured for your TV. Omit `--identity` if an SSH agent already provides the required key.
@@ -64,7 +64,7 @@ python3 ./wiios-installer.pyz tui \
   --user root \
   --port 22 \
   --known-hosts "$HOME/.ssh/known_hosts" \
-  --ipk ./com.wiios.launcher_0.3.34_all.ipk
+  --ipk ./com.wiios.launcher_0.3.38_all.ipk
 ```
 
 Root SSH access is not required for app-only installation. The installer does not root the TV or install a rooting method.
@@ -98,7 +98,7 @@ python3 ./wiios-installer.pyz tui --text-mode \
   --transport root-ssh \
   --user root \
   --port 22 \
-  --ipk ./com.wiios.launcher_0.3.34_all.ipk
+  --ipk ./com.wiios.launcher_0.3.38_all.ipk
 ```
 
 ### Installation modes
@@ -108,7 +108,13 @@ python3 ./wiios-installer.pyz tui --text-mode \
 - **App-only:** Installs WiiOS as a regular application without changing the original LG Home, Home hooks, metrics services, or privacy settings. It works without root when the required Developer Mode installation capabilities are available.
 - **Home replacement:** Requires an exact, hardware-validated compatibility profile and an independently verified recovery procedure. New Home takeover is currently blocked on unqualified firmware. Installing the IPK alone does not replace the original Home.
 
-Start with **Inspect Firmware Compatibility** before attempting Home integration. Compatibility reports are diagnostic evidence, not confirmation of Home replacement support.
+Start with **Inspect Firmware Compatibility** before attempting Home integration. Compatibility reports are diagnostic evidence, not confirmation of Home replacement support. When a legacy QML takeover is already active, the installer verifies its reviewed scripts, bind-mount journal, boot identity, namespace, and mount identities before reporting `HOME_INSTALLED`. A recognition result is not permission to perform a new takeover.
+
+### Compatibility improvements introduced in 0.3.35
+
+The frontend preserves a validated, origin-local application catalog when the TV temporarily denies Luna listing or the local catalog helper is unavailable. Cached data contains application identifiers and titles, expires after 30 days, and is marked as stale in diagnostics. A cached catalog never grants additional system permissions.
+
+The compatibility engine supports qualified change-plan generation for QML, native and directory-based Home integrations, plus SHA-256-verified staging of stock Home manifests. These components are preparation and test infrastructure. New privileged Home activation remains disabled until an independently recoverable device executor has been physically qualified.
 
 ### Updates, recovery, and troubleshooting
 
@@ -132,7 +138,35 @@ realpath ./wiios-installer.pyz
 python3 ./wiios-installer.pyz --version
 ```
 
-See [installation details](docs/INSTALL.md), [firmware compatibility](docs/COMPATIBILITY.md), and [recovery procedures](docs/RECOVERY.md).
+### Preparing a Home overlay candidate offline
+
+A verified stock Home manifest is required to prepare an offline bundle for web-Home firmware. This command does not connect to or change a television. Build WiiOS first and obtain the original `appinfo.json` from the target TV through a read-only inspection method.
+
+```sh
+python3 scripts/build.py
+sha256sum stock-home-appinfo.json
+python3 dist/wiios-installer.pyz prepare-home-bundle \
+  --app-dir dist/app \
+  --stock-manifest stock-home-appinfo.json \
+  --stock-sha256 VERIFIED_SHA256 \
+  --output dist/home-candidate
+```
+
+The command verifies the original manifest digest, keeps the Home identity, validates every asset path and rejects symlinks. The resulting `wiios-home-bundle.json` contains SHA-256 digests for all staged files. This is only an offline staging artifact, not permission to mount it over LG Home.
+
+### Creating a device qualification checklist
+
+```sh
+python3 dist/wiios-installer.pyz qualification-template \
+  --diagnostics wiios-diagnostics.json \
+  --output device-qualification.json
+```
+
+The generated checklist starts with every physical-device test marked `NOT_RUN`. It can never approve a Home replacement automatically.
+
+## Firmware-qualified Home trials
+
+Native and web/Flutter Home trial execution requires an exact approved firmware profile, an approved IPK and bundle, independent rollback, and manual confirmation. It is experimental and does not enable persistent takeover for unknown firmware.
 
 ## Build and test
 
@@ -147,6 +181,17 @@ python3 scripts/build.py
 
 Build artifacts include the IPK, standalone terminal installer, SHA-256 checksums, and a build manifest. Host-side tests do not require a connected TV. Firmware-specific Home takeover still requires validation on physical hardware.
 
+
+## Legacy QML device validation
+
+The LG 32LM625BPSB firmware 05.40.97 reference is stored under `compatibility/profiles/observed/`. It records successful detection of an already-installed WiiOS Home, not permission to activate Home on a new device. Run `home audit-legacy-recovery` through root SSH for a read-only preflight of the existing rollback scripts and journal.
+
 ## License
 
 Original source is licensed under [Apache License 2.0](LICENSE). Nintendo and LG materials remain the property of their respective owners; see [NOTICE](NOTICE). WiiOS is independent of Nintendo and LG.
+
+## Firmware-qualified Home replacement
+
+Compatibility r10 includes experimental native Home stand-in and web/Flutter Home directory trial executors, transaction journals, independent rollback, guarded boot persistence, and a separate post-reboot confirmation step. These mechanisms are **not automatically enabled** for unknown firmware. A physically validated and maintainer-approved exact profile is mandatory.
+
+Optional SSAP pairing in WiiOS settings provides a fallback application catalog and launch transport when Luna permissions are restricted. The user initiates pairing, approves the TV prompt, selects WSS or WS, and may remove the paired client key at any time.

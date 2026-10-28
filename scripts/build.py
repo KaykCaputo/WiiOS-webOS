@@ -14,7 +14,7 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'library.js', 'artwork.js', 'audio.js', 'stats.js', 'app.js', 'icon.png')
+FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
 
 def compressed_tar(files):
@@ -118,7 +118,7 @@ def build_installer(root, output, package):
     content = {'__main__.py': b'from installer.cli import main\nraise SystemExit(main())\n'}
     for folder in ('installer', 'compatibility', 'home'):
         for source in sorted((root / folder).rglob('*')):
-            if source.is_file() and source.suffix in ('.py', '.json', '.md') and not {'tests', '__pycache__'}.intersection(source.parts):
+            if source.is_file() and source.suffix in ('.py', '.json', '.md', '.sh', '.js') and not {'tests', '__pycache__'}.intersection(source.parts):
                 content[source.relative_to(root).as_posix()] = source.read_bytes()
     for name in ('LICENSE', 'NOTICE'):
         content[name] = (root / name).read_bytes()

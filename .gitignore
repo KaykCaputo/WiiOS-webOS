@@ -8,3 +8,6 @@ assets/apps/*.jpeg
 assets/apps/*.jpg
 assets/apps/*.png
 .venv/
+release/wiios-qml-recovery-preflight.json
+release/wiios-compat-*.json
+release/*diagnostic*.json

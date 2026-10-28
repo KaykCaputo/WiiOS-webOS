@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "referenceType": "OBSERVED_QML_DETECTION",
+  "qualification": "DETECTION_ONLY",
+  "takeoverApproved": false,
+  "independentRecoveryRehearsed": false,
+  "sourceProfileDigest": "ea8953a4e379d7fd5351149a56c280f6c8d77fc079d7c72a02d7042a346a6d0b",
+  "identity": {
+    "model": "32LM625BPSB",
+    "board": "M3R_ATSC_KR",
+    "firmware": "05.40.97",
+    "sdkVersion": "4.10.0",
+    "architecture": "armv7l"
+  },
+  "home": {
+    "appId": "com.webos.app.fullhome",
+    "implementation": "qml",
+    "effectiveManifestSha256": "5a06a87fe258d548cc13ba1257538265173d320ca84290cd5a1d8f7168fc3e2a",
+    "stockManifestSha256": null,
+    "targetHashes": {
+      "/usr/palm/applications/com.webos.app.fullhome/qml/main.qml": "ac7901e140f8ffc8f2c0c123b96bd4b9f406116f4936dbf876a37b01084943a5",
+      "/usr/palm/applications/com.webos.app.fullhome/qml/UserInterfaceLayer/UIController.qml": "ccc1090479b4918742fea920ad2298258bb9c6145d072260fbc956bab270f775"
+    },
+    "mountTargets": [
+      "/mnt/lg/cmn_data/checkpoint/com.webos.app.fullhome",
+      "/tmp/checkpoint/com.webos.app.fullhome",
+      "/usr/palm/applications/com.webos.app.fullhome/qml/UserInterfaceLayer/UIController.qml",
+      "/usr/palm/applications/com.webos.app.fullhome/qml/main.qml"
+    ],
+    "recognizedHooks": [
+      "97-wiios-privacy",
+      "98-wiios-metrics",
+      "99-wiios-fullhome"
+    ],
+    "transactionId": "diag-3e891511b377"
+  },
+  "expectedDecision": {
+    "homeStatus": "HOME_INSTALLED",
+    "selectedHomeAdapter": "qml-redirect",
+    "ownershipStatus": "VERIFIED",
+    "namespaceVerified": true,
+    "foreignMountCount": 0,
+    "conflictingHookCount": 0
+  },
+  "limitations": [
+    "Observed detection only; no new Home takeover is approved.",
+    "Effective QML file hashes are not stock QML hashes.",
+    "Independent stock Home recovery has not been demonstrated.",
+    "No other TV model or firmware is qualified by this reference."
+  ],
+  "referenceSha256": "fc8ffd1b102971cdff5cc57155b8f70acac4ea22c005f95ec2e662052efde155"
+}

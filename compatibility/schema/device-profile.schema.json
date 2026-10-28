@@ -150,6 +150,53 @@
         },
         "candidates": {
           "type": "array"
+        },
+        "selectionEvidence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ownedMounts": {
+          "type": "array"
+        },
+        "recognizedHooks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ownershipStatus": {
+          "enum": [
+            "ABSENT",
+            "UNVERIFIED",
+            "VERIFIED"
+          ]
+        },
+        "ownershipReasonCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ownershipFailureCheck": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nativeEntrypoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nativeEntrypointSha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "[a-f0-9]{64}"
         }
       },
       "required": [

@@ -14,8 +14,10 @@ def configure_connection(args, read=input, write=print):
         raise InstallerError('INVALID_TRANSPORT', 'Select Developer Mode or Root SSH.', 2)
     args.transport = 'root-ssh' if selection == '2' else 'developer-mode'
     args.host = args.host or read('TV address: ').strip()
-    args.port = args.port or int(read('Configured SSH port: ').strip())
-    args.user = args.user or read('Configured SSH username: ').strip()
+    default_port = 22 if args.transport == 'root-ssh' else 9922
+    args.port = args.port or int(read(f'SSH port [{default_port}]: ').strip() or str(default_port))
+    default_user = 'root' if args.transport == 'root-ssh' else 'prisoner'
+    args.user = args.user or read(f'SSH username [{default_user}]: ').strip() or default_user
     args.identity = args.identity or read('Private key path, or Enter to use your SSH agent: ').strip() or None
     return args
 
@@ -33,7 +35,9 @@ def run(engine, read=input, write=print):
             write('Trusted SSH fingerprint: ' + engine.transport.fingerprint())
         except InstallerError:
             from installer.transport import trust_host
-            write('No trusted SSH key was found. Verify the fingerprint through an independent trusted channel.')
+            write('No trusted SSH key was found in ' + engine.transport.connection.known_hosts)
+            write('If regular SSH already works, restart with --known-hosts ~/.ssh/known_hosts and the correct port.')
+            write('Verify the fingerprint through an independent trusted channel before approving a new key.')
             fingerprint = read('Enter the verified SHA256 fingerprint, or Enter to cancel: ').strip()
             if not fingerprint:
                 return {'ok': False, 'reasonCode': 'HOST_KEY_UNTRUSTED'}

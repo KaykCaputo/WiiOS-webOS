@@ -65,11 +65,23 @@
       id.indexOf('com.webos.') !== 0 && id.indexOf('com.palm.') !== 0 &&
       !/^hdmi/i.test(id) && id.indexOf('usb') === -1 && id !== 'lgchannels.br';
   }
+  function fallback(method, id, done) {
+    var payload = method === 'listLaunchPoints' ? {} : method === 'getAppLoadStatus' ? {appId: id} : {id: id};
+    return request(method, payload, function (error, result) {
+      if (!error) {done(null, result); return;}
+      var other = root.WiiSSAP;
+      if (!other || !other.configured()) {done(error); return;}
+      if (method === 'listLaunchPoints') other.list(done);
+      else if (method === 'getAppLoadStatus') other.check(id, done);
+      else if (method === 'launch') other.launch(id, done);
+      else done(error);
+    });
+  }
   root.WiiTV = {
     isTV: typeof root.PalmServiceBridge === 'function', request: request,
-    list: function (done) { return request('listLaunchPoints', {}, done); },
-    check: function (id, done) { return request('getAppLoadStatus', {appId: id}, done); },
-    launch: function (id, done) { return request('launch', {id: id}, done); },
+    list: function (done) { return fallback('listLaunchPoints', null, done); },
+    check: function (id, done) { return fallback('getAppLoadStatus', id, done); },
+    launch: function (id, done) { return fallback('launch', id, done); },
     uninstall: uninstall, canUninstall: canUninstall
   };
 }(window));

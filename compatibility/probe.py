@@ -3,11 +3,12 @@ import hashlib
 import json
 import re
 
+from compatibility.discovery import HOME_IDS, choose_home, classify_home, sam_registration
+from compatibility.legacy import inspect_legacy, recognized_auxiliary_hooks
 from compatibility.mountinfo import parse_mountinfo, related_mounts
 from compatibility.schema import validate_document
 from installer.errors import InstallerError
 
-HOME_IDS = ('com.webos.app.fullhome', 'com.webos.app.home')
 TARGETS = ('qml/main.qml', 'qml/UserInterfaceLayer/UIController.qml')
 
 
@@ -18,8 +19,9 @@ def probe(transport):
                              'hostFingerprint': None, 'endpoint': transport.connection.endpoint},
                'home': {'appId': None, 'implementation': 'unknown', 'effectiveDirectory': None,
                         'stockManifestSha256': None, 'effectiveManifestSha256': None, 'targetHashes': {},
-                        'mountNamespace': None, 'namespaceVerified': False, 'foreignMounts': [],
-                        'conflictingHooks': [], 'candidates': []},
+                        'nativeEntrypoint': None, 'nativeEntrypointSha256': None,
+                        'mountNamespace': None, 'namespaceVerified': False, 'selectionEvidence': None, 'foreignMounts': [],
+                        'conflictingHooks': [], 'ownedMounts': [], 'recognizedHooks': [], 'ownershipStatus': 'ABSENT', 'ownershipReasonCode': None, 'ownershipFailureCheck': None, 'candidates': []},
                'capabilities': {key: 'unknown' for key in ('ipkInstall', 'lunaApplicationListing',
                     'lunaApplicationLaunch', 'ssapPairing', 'samManifestReload', 'nativeHomeLifecycle', 'webAppManager')},
                'wiiOsInstallation': {'appInstalled': None, 'homeAdapter': None, 'transactionId': None},
@@ -54,6 +56,11 @@ def probe(transport):
     present = observe('capabilities.ipkInstall', 'ssh_readonly', lambda: transport.execute('command -v ' + binary).strip())
     if present:
         profile['capabilities']['ipkInstall'] = 'available'
+        status = observe('capabilities.installService', 'runtime_query', lambda: transport.luna(
+            'luna://com.webos.appInstallService/status', {'subscribe': False}))
+        profile['observations'].append({'field': 'capabilities.ipkInstall',
+            'source': 'read-only-install-service-status',
+            'status': 'service-reachable' if isinstance(status, dict) and status.get('returnValue') is True else 'permission-unverified'})
     listing = observe('capabilities.lunaApplicationListing', 'runtime_query', lambda: transport.luna(
         'luna://com.webos.applicationManager/listLaunchPoints', {}))
     if isinstance(listing, dict):
@@ -77,7 +84,22 @@ def probe(transport):
     running = observe('home.running', 'runtime_query', lambda: transport.luna('luna://com.webos.applicationManager/running', {}))
     active = []
     if isinstance(running, dict) and running.get('returnValue') is True:
-        active = [entry.get('id') for entry in running.get('running', []) if isinstance(entry, dict) and entry.get('id') in HOME_IDS]
+        entries = running.get('running', [])
+        if isinstance(entries, list):
+            active = [entry.get('id') for entry in entries if isinstance(entry, dict) and entry.get('id') in HOME_IDS]
+    hook_names = observe('home.startupHooks', 'ssh_readonly', lambda: transport.execute(
+        "if [ -d /var/lib/webosbrew/init.d ]; then for file in /var/lib/webosbrew/init.d/*; do [ ! -f \"$file\" ] || basename \"$file\"; done; fi"))
+    hook_list = hook_names.splitlines() if hook_names else []
+    ownership = inspect_legacy(transport, mounts, namespace, hook_list)
+    owned_ids = set(ownership['ownedMounts'])
+    profile['home']['ownedMounts'] = [m.to_dict() for m in mounts or [] if m.mountId in owned_ids]
+    profile['home']['recognizedHooks'] = ownership['recognizedHooks'] + recognized_auxiliary_hooks(transport, hook_list)
+    profile['home']['ownershipStatus'] = ownership['status']
+    profile['home']['ownershipReasonCode'] = ownership['reasonCode']
+    profile['home']['ownershipFailureCheck'] = ownership['failureCheck']
+    if ownership['status'] == 'VERIFIED':
+        profile['wiiOsInstallation']['homeAdapter'] = 'qml-redirect'
+        profile['wiiOsInstallation']['transactionId'] = ownership['transactionId']
     candidates = []
     for app_id in HOME_IDS:
         directory = '/usr/palm/applications/' + app_id
@@ -95,25 +117,54 @@ def probe(transport):
                 content = observe('home.target.' + target, 'ssh_readonly', lambda: transport.execute('sha256sum ' + directory + '/' + target))
                 if content and re.fullmatch(r'[a-f0-9]{64}', content.split()[0]):
                     hashes[directory + '/' + target] = content.split()[0]
-            implementation = 'qml' if len(hashes) == 2 else 'unknown'
+            implementation = 'qml' if len(hashes) == 2 else implementation
+        implementation, implementation_evidence = classify_home(app_id, manifest, hashes)
+        sam_response = observe('home.sam.' + app_id, 'runtime_query', lambda: transport.luna(
+            'luna://com.webos.applicationManager/getAppInfo', {'id': app_id}))
+        registration = sam_registration(app_id, sam_response)
+        type_mismatch = bool(registration['registered'] and registration['type'] and
+            (registration['type'] != implementation if implementation != 'qml' else registration['type'] != 'native'))
         related = [] if mounts is None else related_mounts(mounts, directory)
         ancestors = [] if mounts is None else [m for m in mounts if directory.startswith(m.target.rstrip('/') + '/') and m.root != '/']
+        native_executable = None
+        native_digest = None
+        main = manifest.get('main')
+        if implementation == 'native' and isinstance(main, str):
+            if main.startswith('./'):
+                main = main[2:]
+            if (main and not main.startswith('/') and '..' not in main.split('/') and
+                    re.fullmatch(r'[A-Za-z0-9_./-]+', main)):
+                native_executable = directory + '/' + main
+            elif (main.startswith(directory + '/') and '..' not in main.split('/') and
+                  re.fullmatch(r'[A-Za-z0-9_./-]+', main)):
+                native_executable = main
+            if native_executable:
+                check = observe('home.nativeEntrypoint.' + app_id, 'ssh_readonly',
+                    lambda: transport.execute('sha256sum ' + native_executable))
+                if check and re.fullmatch(r'[a-f0-9]{64}', check.split()[0]):
+                    native_digest = check.split()[0]
         candidates.append({'appId': app_id, 'implementation': implementation if implementation in ('qml', 'native', 'web', 'flutter') else 'unknown',
-                           'effectiveDirectory': directory, 'effectiveManifestSha256': manifest_digest,
+                           'effectiveDirectory': directory, 'implementationEvidence': implementation_evidence,
+                           'sam': registration, 'samTypeMismatch': type_mismatch, 'effectiveManifestSha256': manifest_digest,
                            'stockManifestSha256': manifest_digest if mounts is not None and not related and not ancestors else None,
-                           'targetHashes': hashes, 'foreignMounts': [m.to_dict() for m in related + ancestors]})
+                           'targetHashes': hashes, 'nativeEntrypoint': native_executable,
+                           'nativeEntrypointSha256': native_digest, 'foreignMounts': [m.to_dict() for m in related + ancestors if m.mountId not in owned_ids]})
     profile['home']['candidates'] = candidates
-    selected = [c for c in candidates if c['appId'] in active]
-    if len(selected) == 1:
-        profile['home'].update(selected[0])
-        home_namespaces = observe('home.activeNamespace', 'mountinfo', lambda: transport.execute(
-            'for pid in $(pidof ' + selected[0]['appId'] + '); do readlink /proc/"$pid"/ns/mnt; done'))
-        profile['home']['namespaceVerified'] = bool(profile['home']['namespaceVerified'] and home_namespaces and
-            all(value == namespace for value in home_namespaces.splitlines()))
-    else:
-        profile['home']['namespaceVerified'] = False
-    hooks = observe('home.conflictingHooks', 'ssh_readonly', lambda: transport.execute(
-        "if [ -d /var/lib/webosbrew/init.d ]; then for file in /var/lib/webosbrew/init.d/*; do [ ! -f \"$file\" ] || basename \"$file\"; done; fi"))
-    if hooks:
-        profile['home']['conflictingHooks'] = hooks.splitlines()
+    chosen, selection = choose_home(candidates, active)
+    if chosen is None and ownership['status'] == 'VERIFIED':
+        owned_home = next((candidate for candidate in candidates
+            if candidate['appId'] == 'com.webos.app.fullhome'
+            and candidate['implementation'] == 'qml'
+            and candidate['sam']['registered']
+            and candidate['sam']['homeRole']
+            and not candidate['samTypeMismatch']
+            and not candidate['foreignMounts']), None)
+        if owned_home is not None:
+            chosen, selection = owned_home, 'verified-wiios-qml-ownership'
+    profile['home']['selectionEvidence'] = selection
+    if chosen is not None:
+        profile['home'].update({key: chosen[key] for key in (
+            'appId', 'implementation', 'effectiveDirectory', 'effectiveManifestSha256',
+            'stockManifestSha256', 'targetHashes', 'nativeEntrypoint', 'nativeEntrypointSha256', 'foreignMounts')})
+    profile['home']['conflictingHooks'] = [name for name in hook_list if name not in profile['home']['recognizedHooks']]
     return validate_document(profile, 'device-profile')

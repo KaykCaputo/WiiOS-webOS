@@ -405,13 +405,13 @@
     var uiVersion = typeof window.WIIOS_VERSION === 'string' ? window.WIIOS_VERSION : 'development';
     var markup = option('edit-choice', 'Edit Channel', channels[selected].name) + option('move-choice', 'Move Channel') +
       option('image-choice', 'Change Channel Image', 'Cycle through images from this TV') +
-      option('library-choice', 'App Library') + option('audio-choice', 'Music & Sounds') +
+      option('library-choice', 'App Library') + option('ssap-choice', 'TV Pairing for App Catalog', window.WiiSSAP && window.WiiSSAP.configured() ? 'Connected to ' + window.WiiSSAP.address() : 'Optional pairing when Luna is restricted') + option('audio-choice', 'Music & Sounds') +
       option('motion-choice', 'Animations: ' + (reduced ? 'reduced' : 'enabled')) + option('remove-choice', 'Clear This Channel') +
       option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · ' + uiVersion : 'webOS App · ' + uiVersion);
     dialog('Wii Options', 'Customize your menu channels.', markup, '', null);
     $('edit-choice').onclick = edit; $('move-choice').onclick = beginMove;
     $('image-choice').disabled = !channels[selected].id || !resolveAppImage(channels[selected].id) || !resolveAppImage(channels[selected].id).choices.length;
-    $('image-choice').onclick = cycleChannelImage; $('library-choice').onclick = library; $('audio-choice').onclick = audioSettings;
+    $('image-choice').onclick = cycleChannelImage; $('library-choice').onclick = library; $('ssap-choice').onclick = ssapSettings; $('audio-choice').onclick = audioSettings;
     $('stats-choice').onclick = function () {
       statsVisible = !statsVisible;
       try { storage.setItem('wiios.stats.visible', statsVisible ? 'on' : 'off'); } catch (ignore) {}
@@ -429,6 +429,25 @@
         '<p class="note">Home replacement and startup are managed separately by your TV configuration.</p>' +
         '<p class="note">Interface recreated in CSS/SVG. App images are loaded from this TV. Audio files are bundled locally. Community project unaffiliated with Nintendo or LG.</p>', '', null, settings);
     };
+  }
+  function ssapSettings() {
+    if (!window.WiiSSAP) {toast('This firmware does not support SSAP pairing.'); return;}
+    var current = window.WiiSSAP.address();
+    var markup = '<label for="ssap-address">TV IPv4 address (local network only)</label>' +
+      '<input id="ssap-address" type="text" autocomplete="off" maxlength="15" value="' + escapeHtml(current) + '" placeholder="192.168.1.10">' +
+      '<label><input id="ssap-secure" type="checkbox" checked> Secure WebSocket (WSS port 3001)</label>' +
+      '<p class="note">Pairing asks for permission on the TV. The client key is kept in the local WiiOS application storage. Wireless LAN requests may be unavailable on some webOS versions.</p>' +
+      option('ssap-remove', 'Remove Pairing', 'Delete the stored connection and client key');
+    dialog('TV Catalog Pairing', 'Optional app discovery when the local helper and Luna are unavailable.', markup, 'Pair', function () {
+      var address = $('ssap-address').value.trim();
+      if (!window.WiiSSAP.configure(address, $('ssap-secure').checked)) {toast('Use a private IPv4 address on your local network.'); return;}
+      $('confirm').disabled = true;
+      window.WiiSSAP.list(function (error) {
+        if (error) {window.WiiSSAP.disconnect(); toast('TV pairing failed or was denied.'); $('confirm').disabled = false; return;}
+        toast('TV paired. Refresh the App Library.'); settings();
+      });
+    }, settings);
+    $('ssap-remove').onclick = function () {window.WiiSSAP.disconnect(); settings(); toast('TV pairing removed.');};
   }
   function refreshArtwork() {
     channels.forEach(function (channel, index) {
@@ -628,6 +647,7 @@
   try { statsVisible = storage.getItem('wiios.stats.visible') !== 'off'; } catch (ignore) {}
   updateStats();
   resize(); render(); clock(); clockTimer = setInterval(clock, 10000);
+  window.WIIOS_UI_READY = true;
   var lastRefresh = 0;
   function refreshLibrary() {
     if (preview || scanning || Date.now() - lastRefresh < 10000) return;

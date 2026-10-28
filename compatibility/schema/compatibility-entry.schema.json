@@ -95,6 +95,19 @@
             "type": "string",
             "pattern": "[a-f0-9]{64}"
           }
+        },
+        "nativeEntrypoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nativeEntrypointSha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "[a-f0-9]{64}"
         }
       },
       "required": [
@@ -168,6 +181,44 @@
           "items": {
             "type": "string"
           }
+        },
+        "samProtocol": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "sam-block-release-v1",
+            null
+          ]
+        },
+        "nativeContract": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "register-app-v2",
+            "register-native-app-v1",
+            null
+          ]
+        },
+        "wamLaunchSha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "[a-f0-9]{64}"
+        },
+        "bootProtocol": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "webosbrew-init-v1",
+            null
+          ]
         }
       },
       "required": [

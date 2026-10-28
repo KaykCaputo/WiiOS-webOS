@@ -20,7 +20,9 @@ class Mount:
     superOptions: str
 
     def to_dict(self):
-        return asdict(self)
+        result = asdict(self)
+        result['optional'] = list(self.optional)
+        return result
 
 
 def parse_mountinfo(text):

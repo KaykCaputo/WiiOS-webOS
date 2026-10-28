@@ -51,11 +51,17 @@ class SimulatedDevice:
         if event['operation'] in self.active:
             self.active.remove(event['operation'])
 
+    def verify_stock_files(self, plan):
+        return not self.active
+
     def verify_stock(self, plan):
         return not self.active
 
-    def reboot_verified(self, plan):
+    def preflight_persistence(self, plan, record):
         return True
+
+    def reboot_identity(self):
+        return self.boot_id if hasattr(self, "boot_id") else "initial-boot"
 
     def verify_recovery_identity(self, record):
         return True
@@ -131,7 +137,22 @@ class TransactionTests(unittest.TestCase):
         second.activate()
         second.verify()
         second.commit(proof, second_plan['approvalDigest'])
+        self.assertEqual(self.device.journal['state'], 'PERSISTENCE_PENDING')
+        self.device.boot_id = 'next-boot'
+        second.finalize()
         self.assertEqual(self.device.journal['state'], 'COMMITTED')
+
+    def test_file_restoration_does_not_qualify_a_rehearsal(self):
+        self.transaction.stage()
+        self.transaction.activate()
+        self.device.verify_stock = lambda plan: False
+        result = self.transaction.restore()
+        self.assertEqual(result['state'], 'STOCK_FILES_RESTORED')
+        self.assertFalse(result['stockHomeVerified'])
+        with self.assertRaises(InstallerError):
+            self.transaction.restoration_proof()
+        self.device.verify_stock = lambda plan: True
+        self.assertEqual(self.transaction.verify_restoration()['state'], 'RESTORED')
 
     def test_ht16_firmware_change_blocks_boot(self):
         device = profile()

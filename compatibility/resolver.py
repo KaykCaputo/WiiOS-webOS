@@ -35,8 +35,18 @@ def resolve(profile, entries=None, artifact_digest=None):
         for adapter, app_id in candidates
     ]
     candidate_conflicts = any(observed.get('foreignMounts') for observed in home.get('candidates', []))
-    if home['foreignMounts'] or home.get('conflictingHooks') or candidate_conflicts:
-        decision.update(homeStatus='CONFLICT', reasonCodes=['HOME_OWNERSHIP_CONFLICT'])
+    sam_conflicts = any(observed.get('samTypeMismatch') for observed in home.get('candidates', []))
+    if sam_conflicts:
+        decision.update(homeStatus='CONFLICT', reasonCodes=['HOME_SAM_MANIFEST_MISMATCH'])
+    elif home['foreignMounts'] or home.get('conflictingHooks') or candidate_conflicts:
+        reason = ('HOME_OWNERSHIP_UNVERIFIED' if home.get('ownershipStatus') == 'UNVERIFIED'
+                  else 'HOME_OWNERSHIP_CONFLICT')
+        decision.update(homeStatus='CONFLICT', reasonCodes=[reason])
+    elif home.get('ownershipStatus') == 'VERIFIED' and home.get('namespaceVerified') is not True:
+        decision.update(homeStatus='BLOCKED', reasonCodes=['HOME_PROCESS_NAMESPACE_UNVERIFIED'])
+    elif home.get('ownershipStatus') == 'VERIFIED' and profile['wiiOsInstallation']['homeAdapter'] == 'qml-redirect':
+        decision.update(homeStatus='HOME_INSTALLED', selectedMode='home-replacement',
+                        selectedHomeAdapter='qml-redirect', reasonCodes=['WIIOS_HOME_ALREADY_ACTIVE'])
     elif transport['kind'] != 'root-ssh' or transport['root'] is not True:
         decision.update(homeStatus='BLOCKED', reasonCodes=['HOME_ROOT_REQUIRED'])
     elif home.get('appId') is None and candidates:
@@ -56,6 +66,15 @@ def resolve(profile, entries=None, artifact_digest=None):
             if any(not value or profile['identity'].get(key) != value for key, value in entry['identity'].items()):
                 continue
             if any(home.get(key) != value or value is None for key, value in expected.items()):
+                continue
+            if candidate == 'native-home-standin' and (
+                    not expected.get('nativeEntrypoint') or not expected.get('nativeEntrypointSha256')):
+                continue
+            if candidate == 'home-directory-takeover' and qualification.get('samProtocol') != 'sam-block-release-v1':
+                continue
+            if candidate == 'native-home-standin' and (
+                    qualification.get('nativeContract') not in ('register-app-v2', 'register-native-app-v1') or
+                    not qualification.get('wamLaunchSha256')):
                 continue
             if any(capabilities.get(key) != 'available' for key in qualification['requiredCapabilities']):
                 continue
