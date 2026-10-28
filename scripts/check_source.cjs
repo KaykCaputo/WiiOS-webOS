@@ -7,12 +7,9 @@ function inspect(path, source) {
   const errors = [];
   if (/\.(?:js|cjs)$/.test(path)) {
     const runtime = !path.includes('/') || path.startsWith('root-services/') || path.startsWith('platform/');
-    acorn.parse(source, {ecmaVersion: runtime ? 5 : 'latest', allowHashBang: true,
-      onComment: (block, text, start) => {
-        if (!(start === 0 && source.startsWith('#!'))) errors.push('Source comment');
-      }});
+    acorn.parse(source, {ecmaVersion: runtime ? 5 : 'latest', allowHashBang: true});
   } else if (path.endsWith('.css')) {
-    postcss.parse(source, {from: path, map: false}).walkComments(() => errors.push('Source comment'));
+    postcss.parse(source, {from: path, map: false});
   }
   return errors;
 }

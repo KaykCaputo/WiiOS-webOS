@@ -5,6 +5,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('wiios_build', ROOT / 'scripts/build.py')
@@ -13,6 +14,12 @@ spec.loader.exec_module(build)
 
 
 class PackageTest(unittest.TestCase):
+    def test_build_rejects_an_entrypoint_asset_missing_from_the_package(self):
+        files = tuple(name for name in build.FILES if name != 'home-runtime.js')
+        with tempfile.TemporaryDirectory() as dest, mock.patch.object(build, 'FILES', files):
+            with self.assertRaisesRegex(FileNotFoundError, 'home-runtime.js'):
+                build.build(output=dest)
+
     def test_bundles_app_artwork_code_and_all_sounds(self):
         with tempfile.TemporaryDirectory() as dest:
             package = build.build(output=dest)
@@ -28,6 +35,7 @@ class PackageTest(unittest.TestCase):
             with tarfile.open(fileobj=io.BytesIO(members['data.tar.gz']), mode='r:gz') as archive:
                 names = set(archive.getnames())
                 prefix = 'usr/palm/applications/com.wiios.launcher/'
+                self.assertIn(prefix + 'home-runtime.js', names)
                 self.assertIn(prefix + 'artwork.js', names)
                 self.assertIn(prefix + 'library.js', names)
                 for sound in ('menu', 'hover', 'select', 'back', 'page', 'start'):

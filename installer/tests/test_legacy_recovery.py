@@ -1,7 +1,7 @@
-from pathlib import Path
 import unittest
 
 from home.operations.legacy_recovery import restore_legacy
+from legacy_fixture import RECOVERY_FILES, patch_recovery_metadata
 from installer.errors import InstallerError
 
 
@@ -18,7 +18,7 @@ class LegacyDevice:
             return self.status
         if self.corrupt:
             return 'unrecognized recovery payload'
-        return (Path(__file__).resolve().parents[2] / 'fullhome-integration' / 'bundle' / Path(path).name).read_text()
+        return RECOVERY_FILES[path.rsplit('/', 1)[-1]]
 
     def execute(self, command, timeout=20):
         self.commands.append(command)
@@ -30,6 +30,9 @@ class LegacyDevice:
 
 
 class LegacyRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        patch_recovery_metadata(self, 'home.operations.legacy_recovery')
+
     def test_recovery_checks_existing_scripts_before_disabling_hook_and_restoring(self):
         device = LegacyDevice()
         result = restore_legacy(device, 'diag-3e891511b377')
