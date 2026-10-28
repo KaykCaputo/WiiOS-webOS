@@ -39,13 +39,16 @@
     names.slice(1).forEach(function (key) {
       if (!assets[key] || buffers[key] || loading[key]) return;
       loading[key] = true;
+      // Every exit clears the flag, so a failed load can be tried again; while
+      // it is set, parallel calls skip the effect instead of racing it.
+      var settle = function () { delete loading[key]; };
       var xhr = new XMLHttpRequest();
       xhr.open('GET', assets[key], true); xhr.responseType = 'arraybuffer'; xhr.timeout = 8000;
       xhr.onload = function () {
-        if ((xhr.status === 0 || xhr.status === 200) && xhr.response) decode(key, xhr.response);
-        else errors[key] = 'Sound file unavailable.';
+        if ((xhr.status === 0 || xhr.status === 200) && xhr.response) decode(key, xhr.response, settle);
+        else { errors[key] = 'Sound file unavailable.'; settle(); }
       };
-      xhr.onerror = xhr.ontimeout = function () { errors[key] = 'Unable to load sound effect.'; };
+      xhr.onerror = xhr.ontimeout = function () { errors[key] = 'Unable to load sound effect.'; settle(); };
       xhr.send();
     });
   }
