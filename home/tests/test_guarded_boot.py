@@ -54,6 +54,8 @@ class GuardedBootTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
             artifact = self.setup_hook()
+            boot_id = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            (base / 'boot-runs' / boot_id).mkdir(parents=True)
             (base / 'boot-enabled').touch()
             (base / 'owned-mount.sh').write_text('#!/bin/sh\nexit 0\n')
             (base / 'restore.sh').write_text('#!/bin/sh\ntouch "' + str(base / 'restored') + '"\n')

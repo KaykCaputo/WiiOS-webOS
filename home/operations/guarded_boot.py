@@ -44,8 +44,13 @@ def build_boot_hook(transaction_id, target, source, original_sha256, staged_sha2
     config = json.dumps({'identity': profile['identity'], 'transactionId': transaction_id,
                          'appId': app_id, 'native': native, 'samProtocol': sam_protocol,
                          'main': 'index.html'}, sort_keys=True, separators=(',', ':')).encode()
-    shared = ['#!/bin/sh', 'set -eu', 'base=' + shlex.quote(base),
-              'target=' + shlex.quote(target), 'source=' + shlex.quote(source)]
+    shared = ['#!/bin/sh', 'set -eu', 'umask 077', 'base=' + shlex.quote(base),
+              'target=' + shlex.quote(target), 'source=' + shlex.quote(source),
+              'boot=$(cat /proc/sys/kernel/random/boot_id)',
+              'case "$boot" in ????????-????-????-????-????????????) ;; *) exit 0 ;; esac',
+              'case "$boot" in *[!a-f0-9-]*) exit 0 ;; esac',
+              'run="$base/boot-runs/$boot"',
+              'record_state() { printf "%s\\n" "$1" > "$run/state.pending"; mv -f "$run/state.pending" "$run/state"; sync; }']
     ownership = 'sh "$base/owned-mount.sh" '
     arguments = ' "$base" "$source" "$target"'
     integrity = []
@@ -55,34 +60,48 @@ def build_boot_hook(transaction_id, target, source, original_sha256, staged_sha2
     lines = shared + [
         '[ -f "$base/boot-enabled" ] || exit 0',
         '[ ! -e "$base/boot-disabled" ] || exit 0',
+        '[ ! -L "$base/boot-runs" ] || exit 0',
+        'mkdir -p "$base/boot-runs" || exit 0',
+        '[ -d "$base/boot-runs" ] && [ ! -L "$base/boot-runs" ] || exit 0',
+        'mkdir "$run" 2>/dev/null || exit 0',
+        'record_state PREFLIGHT',
         'failures="$(cat "$base/boot-failures" 2>/dev/null || echo 2)"',
         'case "$failures" in 0|1) ;; *) exit 0 ;; esac',
         'for tool in node sha256sum mount umount nohup stat awk readlink flock; do command -v "$tool" >/dev/null || exit 0; done',
         *integrity,
         'node "$base/boot-runtime.js" "$base" preflight || exit 0',
+        'record_state PREFLIGHT_VERIFIED',
         '[ "$(sha256sum ' + shlex.quote(sha_target) + ' | cut -d " " -f 1)" = ' + shlex.quote(original_sha256) + ' ] || exit 0',
         '[ "$(sha256sum ' + shlex.quote(sha_source) + ' | cut -d " " -f 1)" = ' + shlex.quote(staged_sha256) + ' ] || exit 0',
         *['[ "$(sha256sum ' + shlex.quote(base + '/bundle/' + name) + ' | cut -d " " -f 1)" = ' + shlex.quote(expected) + ' ] || exit 0' for name, expected in checks],
+        'record_state PAYLOAD_VERIFIED',
         'printf "%s\\n" "$((failures + 1))" > "$base/boot-failures"',
         'sync',
         'nohup sh -c ' + shlex.quote('cat /proc/sys/kernel/random/boot_id > ' + shlex.quote(base + '/boot-watchdog-ready') + '; sleep 120; sh ' + shlex.quote(base + '/boot-health.sh')) + ' </dev/null >/dev/null 2>&1 &',
         'i=0; until [ "$(cat "$base/boot-watchdog-ready" 2>/dev/null)" = "$(cat /proc/sys/kernel/random/boot_id)" ]; do i=$((i + 1)); [ "$i" -lt 5 ] || exit 0; sleep 1; done',
+        'record_state WATCHDOG_ARMED',
         'nohup node "$base/heartbeat.js" "$base" </dev/null >/dev/null 2>&1 &',
-        ownership + 'bind' + arguments + ' || { touch "$base/boot-disabled"; exit 0; }',
-        'if ! node "$base/boot-runtime.js" "$base" refresh; then sh "$base/restore.sh"; exit 0; fi',
+        'if ! ' + ownership + 'bind' + arguments + '; then touch "$base/boot-disabled"; record_state ROLLBACK_REQUESTED; if sh "$base/restore.sh"; then record_state RESTORED; else record_state MANUAL_RECOVERY_REQUIRED; fi; exit 0; fi',
+        'record_state MOUNTED',
+        'if ! node "$base/boot-runtime.js" "$base" refresh; then record_state ROLLBACK_REQUESTED; if sh "$base/restore.sh"; then record_state RESTORED; else record_state MANUAL_RECOVERY_REQUIRED; fi; exit 0; fi',
+        'record_state HOME_REGISTERED',
         'exit 0',
     ]
-    health_integrity = [line.replace('|| exit 0', '|| { touch "$base/boot-disabled"; sh "$base/restore.sh"; exit 1; }') for line in integrity]
+    health_integrity = [line.replace('|| exit 0', '|| { touch "$base/boot-disabled"; record_state ROLLBACK_REQUESTED; if sh "$base/restore.sh"; then record_state RESTORED; else record_state MANUAL_RECOVERY_REQUIRED; fi; exit 1; }') for line in integrity]
     health = shared + [
+        '[ -d "$run" ] && [ ! -L "$run" ] || exit 0',
         'while [ -f "$base/boot-enabled" ] && [ ! -e "$base/boot-disabled" ]; do',
+        'record_state HEALTH_CHECKING',
         *health_integrity,
         'if ! ' + ownership + 'check' + arguments + ' || ! node "$base/boot-runtime.js" "$base" health > "$base/runtime-health.pending"; then',
         '  touch "$base/boot-disabled"',
-        '  sh "$base/restore.sh"',
+        '  record_state ROLLBACK_REQUESTED',
+        '  if sh "$base/restore.sh"; then record_state RESTORED; else record_state MANUAL_RECOVERY_REQUIRED; exit 1; fi',
         '  exit 1',
         'fi',
         'mv "$base/runtime-health.pending" "$base/runtime-health.json"',
         'printf "0\\n" > "$base/boot-failures"',
+        'record_state HEALTHY',
         'sleep 30',
         'done',
     ]

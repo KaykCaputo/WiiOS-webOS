@@ -1,7 +1,9 @@
 # Observed device references
 
-These records reproduce diagnostic observations from real devices. They are not compatibility allowlist entries and must never be used by `load_verified()` to authorize a new Home replacement.
+These records describe observations on a specific physical TV. They are not compatibility allowlist entries and must never authorize a new Home replacement through `load_verified()`.
 
-A reference marked `DETECTION_ONLY` establishes that the installer identified an already-installed, owned Home integration in a read-only report. It does not establish an independent recovery rehearsal, physical-button behavior, cold-boot stability, or cross-firmware compatibility.
+The LG 32LM625BPSB reference remains `DETECTION_ONLY`. On 2026-11-17, its existing legacy QML integration was manually reactivated and confirmed after a cold boot. The operator confirmed WiiOS appeared and the physical Home button opened it. The startup hook had to wait for the Homebrew failsafe flag to clear before launching the boot script.
 
-References contain no TV IP address, account name, SSH host fingerprint, serial number, or secret. The reference's SHA-256 detects accidental changes to the JSON; it is not a signature or independent evidence of authenticity.
+The original LG QML files were verified by their stock SHA-256 values before activation and after recovery. The bind mounts did not overwrite files in `/usr`. The trial watchdog could not unmount the busy `/tmp/checkpoint/com.webos.app.fullhome` target; a normal reboot cleared the temporary mounts and restored the original QML. Automatic rollback is therefore not qualified, and this observation does not authorize new takeovers or other devices.
+
+References contain no TV IP address, account name, SSH host fingerprint, serial number, or secret. A reference hash detects accidental file changes; it is not a signature or independent proof.

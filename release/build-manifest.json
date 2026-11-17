@@ -1,9 +1,14 @@
 {
   "artifacts": {
     "com.wiios.launcher_0.3.39_all.ipk": "3e402b8f36601ba053cf116d467ce6a2d536c9a4c4b47172c7b698693dbace8f",
-    "wiios-installer.pyz": "c81f22c01142ab6f6fdf814708d1baca4c223ce9a419a6a075938f883009af85"
+    "wiios-installer.pyz": "f717b7981293bd4471010b3d4f04fe011062b53df266c8a31f9cffa1111d9973"
   },
   "hardwareQualification": "NEEDS_DEVICE_VALIDATION",
+  "installerBuild": {
+    "version": "0.3.39",
+    "wiiOsCommit": "d7c427fb864d73c15f759eff4c8d5f57affaf7fc",
+    "workingTreeDirty": false
+  },
   "schemaVersion": 1,
   "sourceHashes": {
     ".github/workflows/build-ipk.yml": "a38d91614af742605532dae376ca1a635f47e7ee423b02f1691852393c444170",
@@ -81,7 +86,7 @@
     "home/operations/boot_guard.py": "127becdd907d2af4e2d71f6c260ddead17829e5ff86b22cfc3acbb3add99e048",
     "home/operations/boot_runtime.js": "b93b392fe768f77cc7fe15f63a6f2d88704cc6aac0ed7de12f390435d716c866",
     "home/operations/device_backend.py": "335b34df8af9d45c4f1da23cf272397bcb7f6af956a15355a4b0453312acd7e0",
-    "home/operations/guarded_boot.py": "e2bd65bb8ccd40592f8e4cd16101cf902c3da1a07e6767fb31aa0fce5a9d095c",
+    "home/operations/guarded_boot.py": "f37aab8cc1cd523141b10f907bf26e2d26f78abd2e73520ad2ff80a69f932cf5",
     "home/operations/heartbeat.js": "b0d71cc41694f63140614d1d38bb14be0760e7de9f9a988c8578c21ab786b81c",
     "home/operations/legacy-recovery.json": "256cbfe08695f12ba86d5061aefa461a806cd70919ec93675680dc45f1fb6e5a",
     "home/operations/legacy_audit.py": "0ad9a5e5f488996a943e048df0e7011137c8ae1034a915b0c1b5f45cb193cd78",
@@ -96,7 +101,7 @@
     "home/tests/test_bundle.py": "37629991fbcb0f1df4c0b80f6cd4a5dadbdad05f84cff36d7178cb85f9d720c5",
     "home/tests/test_device_backend.py": "a5aa624953fe55f5ba358b7303cbec49b2d1e007c313113f982789e9f9505509",
     "home/tests/test_failure_atomicity.py": "fcb980bb54121111d698be79134b4fa4e946bf72271accad0c5eaf0a274434d7",
-    "home/tests/test_guarded_boot.py": "745e57e0f58a3945309e05a3670fabd73490068a54773ea871d099155d647811",
+    "home/tests/test_guarded_boot.py": "db82844094ee282b999ac95c4acf6c63ecde8f02ac1dc93182b399072e07c345",
     "home/tests/test_manifest.py": "a2247652a5df14de1ab8e4a170d95f75a46601077c5f22969b58bb806d8710bf",
     "home/tests/test_native_standin.py": "76d74b065acadb97b2670285589a2f809f7d39f3e80998ecb18b222a569302fd",
     "home/tests/test_owned_executor.py": "bff32b3d0e6f3fc68066f07f0a1ce2ff25bf759ba0e3a3932caeefadf94379fe",
@@ -138,7 +143,7 @@
     "release/com.wiios.launcher_0.3.38_all.ipk": "ef718c35c82a3d12423322c89621792cb7fea9d24c7499208cec34e80046e52f",
     "release/com.wiios.launcher_0.3.38_all.ipk.sha256": "5128227848929295bad924a0f68c83af2c2c0a9fc3acda6679fd46ae37d5b40f",
     "release/wiios-installer.pyz": "1cc1b191fe4848d04c01402157449056f5071664d77aa27456b5672a71ed34b6",
-    "release/wiios-installer.pyz.sha256": "e1246ac3739e81f160d2bc85ff9e09c7e40f561ab5efbede7fd1b53b49ede77b",
+    "release/wiios-installer.pyz.sha256": "447a928aa690a189e517e1b156826113563300fd39c54c04c86b867f568c0a1f",
     "requirements-dev.txt": "612d7ae9ddeaf76a016b0167f18caa6268e0fda1186e766305a63890878f23aa",
     "root-services/catalog.js": "c913d15981e9ea31483c5249911735b2d85032056dbf45d4311b97c26012dc00",
     "root-services/control.sh": "dd7dd5847812e67fe815dd36a0edce33b0cff6efe32a448e8e9bfb9fc33e1f0e",
