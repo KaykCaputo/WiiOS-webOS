@@ -210,6 +210,29 @@ test('rapid page reversals share a visual update and play each page sound',()=>{
     assert.equal(a.d.querySelector('.channel.selected').id,'slot-12');
   } finally {a.close();}
 });
+test('a stationary pointer does not override directional selection during a page slide',()=>{
+  const effects=[];
+  const a=app({tv:true,images:true,manualFrames:true,effect:key=>effects.push(key)});
+  function move(slot, x) {
+    a.d.getElementById('slot-'+slot).dispatchEvent(new a.w.MouseEvent('mousemove',{bubbles:true,screenX:x,screenY:120}));
+  }
+  try {
+    move(1,400);
+    a.paint();
+    a.key(34);
+    a.paint();
+    move(12,400);
+    a.paint();
+    assert.equal(a.d.querySelector('.channel.selected').id,'slot-13');
+    assert.deepEqual(effects,['hover','page']);
+    move(12,401);
+    a.paint();
+    assert.equal(a.d.querySelector('.channel.selected').id,'slot-12');
+    assert.deepEqual(effects,['hover','page','hover']);
+    a.d.getElementById('slot-12').click();
+    assert.equal(a.d.querySelector('#channel-banner .art-title').textContent,'App 12');
+  } finally {a.close();}
+});
 test('automatic catalog refresh waits for navigation to go quiet when artwork is cached',()=>{
   let scans=0;
   const a=app({tv:true,images:true,onCatalogScan:()=>scans++});

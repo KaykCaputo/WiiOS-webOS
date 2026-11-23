@@ -17,6 +17,7 @@
   var slots = [], surfaces = [], slotArtwork = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
   var shownPage = -1, slideStart = 0, slideEnd = 0;
   var focusFrame = null, warmTimer = null, warmPage = 1;
+  var pointerX = null, pointerY = null;
   var lastGridInput = 0, libraryTimer = null, lastRefresh = 0;
   var artworkTimer = null, pendingArtwork = false, pendingIcons = false, fetchingIcons = false;
   var lastClock = '', lastDate = '';
@@ -172,14 +173,6 @@
           selected = index; focusVisible = true; highlight();
         }
       };
-      button.onmouseenter = function () {
-        if (mode !== 'menu' || Math.floor(index / 12) !== page) return;
-        if (selected !== index || !focusVisible) { noteGridInput(); Sound.effect('hover'); }
-        selected = index; focusVisible = true; queueHighlight();
-        clearTimeout(tooltipTimer); tooltipTimer = setTimeout(function () {
-          if (mode !== 'menu') return; $('channel-tooltip').textContent = channels[index].name; $('channel-tooltip').hidden = false;
-        }, 650);
-      };
       button.onmouseleave = function () { hideTooltip(); cancelHold(); };
       button.onpointerdown = function (event) {
         if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -209,8 +202,28 @@
   }
   function hideTooltip() {
     clearTimeout(tooltipTimer);
+    tooltipTimer = null;
     var tooltip = $('channel-tooltip');
     if (!tooltip.hidden) tooltip.hidden = true;
+  }
+  function movePointer(event) {
+    if (event.screenX === pointerX && event.screenY === pointerY) return;
+    pointerX = event.screenX; pointerY = event.screenY;
+    if (mode !== 'menu' || !event.target.closest) return;
+    var button = event.target.closest('.channel');
+    if (!button) return;
+    var index = Number(button.getAttribute('data-slot'));
+    if (Math.floor(index / 12) !== page) return;
+    if (selected !== index || !focusVisible) {
+      hideTooltip(); noteGridInput(); Sound.effect('hover');
+      selected = index; focusVisible = true; queueHighlight();
+    }
+    if (tooltipTimer !== null || !$('channel-tooltip').hidden) return;
+    tooltipTimer = setTimeout(function () {
+      tooltipTimer = null;
+      if (mode !== 'menu' || selected !== index) return;
+      $('channel-tooltip').textContent = channels[index].name; $('channel-tooltip').hidden = false;
+    }, 650);
   }
   function highlight() {
     if (focusFrame !== null) { window.cancelAnimationFrame(focusFrame); focusFrame = null; }
@@ -830,6 +843,7 @@
     if (event.target === this) this.removeAttribute('aria-activedescendant');
   });
   $('menu').addEventListener('focus', syncChannelFocus);
+  document.addEventListener('mousemove', movePointer);
   document.addEventListener('mousedown', function () { Sound.unlock(); });
   document.addEventListener('error', fallbackImage, true);
   $('prev').onclick = function () { switchPage(page - 1); }; $('next').onclick = function () { switchPage(page + 1); };
