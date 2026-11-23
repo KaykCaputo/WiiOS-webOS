@@ -4,6 +4,8 @@ A Wii-inspired launcher for LG webOS TVs, with customizable channels, applicatio
 
 ![WiiOS home screen with app channels, HDMI inputs, and system stats](docs/media/home.png)
 
+**Minimum supported version:** webOS TV 4.0. WiiOS has been tested on a physical webOS 4.5 TV. App discovery and Home replacement depend on the firmware.
+
 ## Install from an IPK
 
 Use this method to run WiiOS as a regular app without root.
@@ -35,6 +37,8 @@ python3 ./wiios-installer.pyz tui --text-mode \
 The catalog listing is pending. Once it is available, open [Homebrew Channel](https://repo.webosbrew.org/) on the TV, look for **WiiOS** under **Launchers**, select **Install**, then open WiiOS from the TV's app list. Until then, use the IPK steps above.
 
 ## Set WiiOS as Home with Home Chooser
+
+The Home Chooser package registers WiiOS as a full-screen launcher and asks Home Chooser to handle Home selection. WiiOS uses its own app discovery and does not require the optional Home Chooser service permission.
 
 1. On a rooted LG TV, restore LG Home and disable any existing Home remaps. Install [Home Chooser](https://repo.webosbrew.org/apps/org.webosbrew.homechooser/) from Homebrew Channel and open it once to finish setup.
 2. Install the WiiOS IPK from `wiios-home-chooser.zip` if your release provides it. To build it locally, run `python3 scripts/build.py --home-chooser` and install the IPK from `dist/home-chooser/` with webOS Dev Manager.
