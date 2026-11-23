@@ -414,9 +414,9 @@ class TerminalController:
                 'Package: ' + str(value.get('version')),
                 'Home strategy: ' + str(value.get('adapter') or 'None; LG Home unchanged'),
                 'Changes: ' + (', '.join(str(item.get('action')) for item in operations) or 'None'),
-                'Approval ID: ' + str(value.get('approvalDigest', ''))[:16],
                 '',
-                'Press A to approve this plan or Esc to return without changes.',
+                ('Press A to review Home approval or Esc to return.' if value['mode'] == 'home-replacement'
+                 else 'Press A to continue or Esc to cancel.'),
             ]
             self.model.show('plan', 'Installation plan', lines, value)
         elif token in ('apply', 'home-trial', 'home-verify', 'home-persist', 'home-finalize'):
@@ -518,17 +518,12 @@ class TerminalController:
                 return self.engine.artifact.version
             self.perform('artifact', 'Validating WiiOS package', load)
         elif token == 'approve':
-            expected = 'REPLACE HOME' if self.plan['mode'] == 'home-replacement' else 'UPDATE' if self.plan['action'] == 'update' else 'INSTALL'
-            if value != expected:
+            if self.plan['mode'] != 'home-replacement' or value != 'REPLACE HOME':
                 self.model.show('result', 'Installation cancelled',
                                 ['Approval phrase did not match. No installation changes were made.'])
                 return
-            if self.plan['mode'] == 'home-replacement':
-                self.model.input('Temporary Home trial', 'Prepared Home bundle directory', 'home-bundle',
-                                 'A tested independent recovery route and exact approved firmware are mandatory.', 512)
-            else:
-                self.perform('apply', 'Applying the approved plan',
-                             lambda: self.engine.apply(self.plan, self.plan['approvalDigest']))
+            self.model.input('Temporary Home trial', 'Prepared Home bundle directory', 'home-bundle',
+                             'A tested independent recovery route and exact approved firmware are mandatory.', 512)
         elif token == 'home-bundle':
             if not value:
                 self.model.menu('Home trial cancelled.')
@@ -640,9 +635,12 @@ class TerminalController:
         elif token == 'submit':
             self.submit(*value)
         elif token == 'approve':
-            expected = 'REPLACE HOME' if self.plan['mode'] == 'home-replacement' else 'UPDATE' if self.plan['action'] == 'update' else 'INSTALL'
-            self.model.input('Confirm installation', 'Type ' + expected, 'approve',
-                             'Review the plan before confirming. Only the approved operation will run.', 32)
+            if self.plan['mode'] == 'home-replacement':
+                self.model.input('Confirm Home replacement', 'Type REPLACE HOME', 'approve',
+                                 'Review the plan before confirming. Only the approved operation will run.', 32)
+            else:
+                self.perform('apply', 'Applying the approved plan',
+                             lambda: self.engine.apply(self.plan, self.plan['approvalDigest']))
         elif token == 'option':
             self.perform('reconcile', 'Reconciling installation',
                          lambda: self.engine.reconcile_transaction(value))
@@ -655,7 +653,7 @@ class TerminalController:
                 'Backspace / Delete: remove characters.',
                 'Ctrl+U: clear an input field.',
                 'D: inspect the full operation result or exact approved plan.',
-                'A: continue from plan review to confirmation.',
+                'A: approve the application plan or continue to Home confirmation.',
                 'A running operation cannot be cancelled safely by closing the interface.',
             ])
         elif token == 'back':

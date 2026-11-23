@@ -185,7 +185,9 @@ function catalog(options) {
         var stat = fs.statSync(target);
         if (!stat.isFile() || stat.size < 1 || stat.size > 8 * 1024 * 1024) continue;
         var token = crypto.createHash('sha256').update(target + ':' + stat.size + ':' + stat.mtime.getTime()).digest('hex');
-        known[token] = {path: target, type: type, signature: signature(target, stat)};
+        known[token] = known[token] || images[token] || {
+          path: target, type: type, size: stat.size, modified: stat.mtime.getTime(), signature: signature(target, stat)
+        };
         return {src: 'http://127.0.0.1:19083/v1/images/' + token, kind: kind};
       } catch (e) {}
     }
@@ -303,7 +305,11 @@ function catalog(options) {
                   point._candidates.some(function (other) {return other.kind === 'icon';})) return false;
               return true;
             }).slice(0, 8).map(function (candidate) {var token = candidate.src.split('/').pop(), item = known[token];
-                var icon = candidate.kind === 'icon' && item && item.path && item.type === 'image/png' ? pngIconBackground(item.path) : '';
+                var icon = '';
+                if (candidate.kind === 'icon' && item && item.path && item.type === 'image/png') {
+                  if (item.background === undefined) item.background = pngIconBackground(item.path);
+                  icon = item.background;
+                }
                 return {src: candidate.src, kind: candidate.kind, recommended: candidate._priority > 25, background: icon};});
             delete point._candidates;
           });
@@ -355,19 +361,26 @@ function catalog(options) {
   }
   function serve(url, res) {
     var match = /^\/v1\/images\/([a-f0-9]{64})$/.exec(url), entry = match && images[match[1]];
+    if (match && !entry && !cached) {
+      list(function (error) {
+        if (error) {res.writeHead(404); res.end(); return;}
+        serve(url, res);
+      });
+      return;
+    }
     if (!entry) {res.writeHead(404); res.end(); return;}
     if (entry.remote) {serveResource(entry.remote, res); return;}
     try {
       if (fs.realpathSync(entry.path) !== entry.path) throw new Error('Changed path');
       var stat = fs.statSync(entry.path);
-      if (!stat.isFile() || stat.size < 1 || stat.size > 8 * 1024 * 1024) throw new Error('Invalid image');
+      if (!stat.isFile() || stat.size !== entry.size || stat.mtime.getTime() !== entry.modified) throw new Error('Changed image');
       var data = fs.readFileSync(entry.path);
       var type = data.slice(0, 8).toString('hex') === '89504e470d0a1a0a' ? 'image/png' :
         data.slice(0, 3).toString('hex') === 'ffd8ff' ? 'image/jpeg' :
         data.slice(0, 4).toString() === 'RIFF' && data.slice(8, 12).toString() === 'WEBP' ? 'image/webp' : '';
       if (type !== entry.type) throw new Error('Invalid image data');
       res.setHeader('Content-Type', type);
-      res.setHeader('Cache-Control', 'private, max-age=60');
+      res.setHeader('Cache-Control', 'private, max-age=86400');
       res.end(data);
     } catch (e) {res.writeHead(404); res.end();}
   }

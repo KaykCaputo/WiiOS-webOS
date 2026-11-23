@@ -28,9 +28,12 @@ def fresh_trial(plan, trial_nonce):
     return updated
 
 
-def app_plan(profile, artifact, action='install'):
-    return seal_plan({'schemaVersion': 1, 'deviceProfileDigest': profile_digest(profile),
+def app_plan(profile, artifact, action='install', update_nonce=None):
+    plan = {'schemaVersion': 1, 'deviceProfileDigest': profile_digest(profile),
         'mode': 'app-only', 'action': action, 'adapter': None, 'artifactDigest': artifact.digest,
         'version': artifact.version, 'operations': [{'action': action + '-ipk', 'target': 'com.wiios.launcher'}],
         'reverseOperations': [], 'expectedMounts': [], 'expectedHomeManifestDigest': None,
-        'trialTimeoutSeconds': 0, 'requiresRoot': False, 'requiresInteractiveApproval': False, 'profileId': None})
+        'trialTimeoutSeconds': 0, 'requiresRoot': False, 'requiresInteractiveApproval': False, 'profileId': None}
+    if update_nonce is not None and action == 'update':
+        plan['updateNonce'] = update_nonce
+    return seal_plan(plan)

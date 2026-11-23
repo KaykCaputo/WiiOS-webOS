@@ -68,3 +68,23 @@ test('fresh Luna listing restores normal catalog status after stale data', () =>
   assert.equal(tv.WiiLibrary.diagnostics().stale, false);
   assert.equal(tv.WiiLibrary.diagnostics().source, 'luna');
 });
+
+test('banner choices survive a new launcher session and refresh only when the image changes', () => {
+  const store = {};
+  const source = token => ({
+    source: 'local',
+    launchPoints: [{id: 'app.demo', title: 'Demo', images: [
+      {src: 'http://127.0.0.1:19083/v1/images/' + token.repeat(64), kind: 'icon', background: '#123abc'}
+    ]}]
+  });
+  const initial = environment(store);
+  initial.WiiLibrary.accept(source('a'));
+  const reopened = environment(store);
+  assert.equal(reopened.WiiLibrary.image('app.demo').choices[0].background, '#123abc');
+  assert.equal(reopened.WiiLibrary.diagnostics().source, 'snapshot-cache');
+  reopened.WiiLibrary.accept(source('a'));
+  assert.equal(reopened.WiiLibrary.artworkVersion(), 0);
+  reopened.WiiLibrary.accept(source('b'));
+  assert.equal(reopened.WiiLibrary.artworkVersion(), 1);
+  assert.match(environment(store).WiiLibrary.image('app.demo').choices[0].src, /b{64}$/);
+});

@@ -1,6 +1,30 @@
 (function (root) {
   'use strict';
-  var memo = Object.create(null);
+  var memo = Object.create(null), keys = [], saveTimer = null;
+  var cacheKey = 'wiios.generated.artwork.v1', cacheLimit = 160 * 1024, maxEntries = 128;
+  try {
+    var raw = root.localStorage.getItem(cacheKey);
+    var cached = raw && raw.length <= cacheLimit && JSON.parse(raw);
+    if (Array.isArray(cached)) cached.slice(-maxEntries).forEach(function (entry) {
+      if (!Array.isArray(entry) || typeof entry[0] !== 'string' || entry[0].length > 260 ||
+          typeof entry[1] !== 'string' || entry[1].length > 4096 ||
+          !/^data:image\/svg\+xml;charset=utf-8,[A-Za-z0-9_.~%-]+$/.test(entry[1]) || memo[entry[0]]) return;
+      keys.push(entry[0]); memo[entry[0]] = entry[1];
+    });
+  } catch (ignore) {}
+  function remember(key, image) {
+    memo[key] = image;
+    keys.push(key);
+    if (keys.length > maxEntries) delete memo[keys.shift()];
+    if (saveTimer !== null) return;
+    saveTimer = root.setTimeout(function () {
+      saveTimer = null;
+      try {
+        var cache = JSON.stringify(keys.map(function (key) {return [key, memo[key]];}));
+        if (cache.length <= cacheLimit) root.localStorage.setItem(cacheKey, cache);
+      } catch (ignore) {}
+    }, 0);
+  }
   function escape(value) {
     return String(value).replace(/[&<>"']/g, function (c) {
       return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&apos;'}[c];
@@ -24,7 +48,7 @@
   function source(channel) {
     if (!channel || !channel.id) return '';
     var name = String(channel.name || channel.id).slice(0, 40);
-    var key = channel.id + ':' + name;
+    var key = JSON.stringify([channel.id, name]);
     if (memo[key]) return memo[key];
     var safe = escape(name), size = Math.min(49, Math.max(16, Math.floor(445 / (Math.max(1, name.length) * .65))));
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="500" height="280" viewBox="0 0 500 280">' +
@@ -35,10 +59,11 @@
       '<text x="250" y="145" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="' + size + '" text-anchor="middle" fill="#fff">' + safe + '</text>' +
       '<text x="250" y="185" font-family="Arial,Helvetica,sans-serif" font-size="19" text-anchor="middle" fill="#fff" opacity=".78">WiiOS Channel</text></svg>';
 
-    memo[key] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/[!'()*]/g, function (c) {
+    var image = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/[!'()*]/g, function (c) {
       return '%' + c.charCodeAt(0).toString(16).toUpperCase();
     });
-    return memo[key];
+    remember(key, image);
+    return image;
   }
   root.WiiArt = {source: source};
 }(window));

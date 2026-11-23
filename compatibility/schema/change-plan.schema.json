@@ -94,6 +94,10 @@
     "trialNonce": {
       "type": "string",
       "pattern": "[a-f0-9]{32}"
+    },
+    "updateNonce": {
+      "type": "string",
+      "pattern": "[a-f0-9]{32}"
     }
   },
   "required": [

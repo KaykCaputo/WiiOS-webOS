@@ -22,8 +22,14 @@ test('installed application images are discovered and served without bundled art
     const response = {status: null, bytes: null, headers: {}, writeHead(status) {this.status = status;}, setHeader(key, value) {this.headers[key] = value;}, end(bytes) {this.bytes = bytes;}};
     svc.serve('/v1/images/' + token, response);
     assert.equal(response.headers['Content-Type'], 'image/png');
+    assert.equal(response.headers['Cache-Control'], 'private, max-age=86400');
     assert.deepEqual(response.bytes, icon);
     assert.equal(result.source, 'local');
+    const restarted = catalog({roots: [base], execute: (command, args, options, cb) => cb(null,
+      JSON.stringify({returnValue: true, launchPoints: [{id: 'app.demo', largeIcon: 'icon.png'}]}))});
+    response.bytes = null;
+    restarted.serve('/v1/images/' + token, response);
+    assert.deepEqual(response.bytes, icon);
   } finally {
     fs.rmSync(base, {recursive: true, force: true});
   }

@@ -11,14 +11,9 @@ const ASSETS = {
   page: 'assets/audio/page.mp3', start: 'assets/audio/start.mp3'
 };
 
-/**
- * A sandbox whose XHRs record themselves: each instance the page creates is
- * pushed onto `requests`, and `xhr.respond()` drives its callbacks.
- * `decode` is the AudioContext.decodeAudioData the run ends in: 'ok' decodes a
- * 1s buffer, anything else reports an unsupported format.
- */
 function environment(decode) {
   const requests = [];
+  let music, plays = 0;
   function XMLHttpRequest() {
     requests.push(this);
     this.onload = this.onerror = this.ontimeout = null;
@@ -26,7 +21,12 @@ function environment(decode) {
   XMLHttpRequest.prototype.open = function () {};
   XMLHttpRequest.prototype.send = function () {};
   function Audio() {
-    return {loop: false, preload: '', volume: 1, play() { return {catch() {}}; }, pause() {}};
+    music = {
+      loop: false, preload: '', volume: 1, paused: true,
+      play() { plays++; this.paused = false; return {catch() {}}; },
+      pause() { this.paused = true; }
+    };
+    return music;
   }
   function AudioContext() {
     this.state = 'running';
@@ -48,8 +48,21 @@ function environment(decode) {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'audio.js'), 'utf8'),
     {window, document: {addEventListener() {}, hidden: false}, Audio, XMLHttpRequest, localStorage: window.localStorage,
      URL: window.URL, JSON, Object, Array, String, Math, RegExp, Number});
-  return {window, requests};
+  return {window, requests, music, plays: () => plays};
 }
+
+test('navigation does not ask the browser to play already running music', () => {
+  const {window, music, plays} = environment('ok');
+  const audio = window.WiiAudio;
+  audio.unlock();
+  audio.unlock();
+  assert.equal(plays(), 1);
+  audio.pause();
+  audio.resume();
+  assert.equal(plays(), 2);
+  music.onended();
+  assert.equal(plays(), 3);
+});
 
 test('a failed load can be retried', () => {
   const {window, requests} = environment('fail');

@@ -1,3 +1,5 @@
+import secrets
+
 from compatibility.probe import probe
 from compatibility.resolver import resolve
 from compatibility.signatures import profile_digest
@@ -48,7 +50,7 @@ class InstallEngine:
             raise InstallerError('INVALID_MODE', 'Choose app or home mode.', 2)
         if decision['appStatus'] != 'APP_ELIGIBLE':
             raise InstallerError('APP_INSTALL_UNAVAILABLE', 'Application installation capabilities are unknown.', 3)
-        return app_plan(profile, self.artifact, action)
+        return app_plan(profile, self.artifact, action, secrets.token_hex(16) if action == 'update' else None)
 
     def home_trial(self, plan, approval_digest, bundle_directory, sam_protocol=None, native_contract=None, launch_payload=None):
         from pathlib import Path
@@ -268,7 +270,7 @@ class InstallEngine:
             raise InstallerError('HOME_NOT_RELEASE_QUALIFIED', 'No device executor is release qualified.', 3)
         if not self.artifact or self.artifact.digest != plan['artifactDigest']:
             raise InstallerError('ARTIFACT_CHANGED', 'The selected artifact differs from the approved plan.', 8)
-        expected = app_plan(current, self.artifact, plan['action'])
+        expected = app_plan(current, self.artifact, plan['action'], plan.get('updateNonce'))
         if expected != plan:
             raise InstallerError('PLAN_OPERATIONS_CHANGED', 'The plan contains unsupported operations.', 8)
         if plan['action'] == 'uninstall':
@@ -281,19 +283,25 @@ class InstallEngine:
             if previous.get('state') != 'COMMITTED':
                 raise InstallerError('TRANSACTION_RECONCILIATION_REQUIRED',
                     'The previous transaction is incomplete. Reconcile it before retrying.', 6)
-            if self.application.version() != plan['version']:
+            if self.application.version() != plan['version'] or (
+                    plan['action'] == 'update' and not self._update_payload_matches(previous)):
                 raise InstallerError('COMMITTED_VERSION_CHANGED',
                     'The recorded installation differs from the installed application.', 8)
             return dict(previous['result'], transactionId=plan['transactionId'], alreadyApplied=True)
         transaction = {'schemaVersion': 1, 'transactionId': plan['transactionId'], 'plan': plan,
                        'deviceProfileDigest': profile_digest(current), 'endpoint': self.transport.connection.endpoint,
                        'state': 'PLAN_APPROVED', 'events': []}
+        if plan['action'] == 'update':
+            transaction['payloadChecksums'] = self.artifact.app_payload_checksums(include_manifest=True)
         self.journal.save(transaction)
         try:
             transaction['state'] = 'STAGED'
             transaction['events'].append({'action': 'install-ipk', 'status': 'intent-recorded'})
             self.journal.save(transaction)
-            result = self.application.install(self.artifact, plan['transactionId'])
+            if plan['action'] == 'update':
+                result = self.application.install(self.artifact, plan['transactionId'], update=True)
+            else:
+                result = self.application.install(self.artifact, plan['transactionId'])
             transaction.update(state='COMMITTED', result=result)
             self.journal.save(transaction)
             return dict(result, transactionId=plan['transactionId'])
@@ -302,11 +310,20 @@ class InstallEngine:
             self.journal.save(transaction)
             raise
 
+    def _update_payload_matches(self, transaction):
+        checksums = transaction.get('payloadChecksums')
+        if not checksums and self.artifact and self.artifact.digest == transaction['plan']['artifactDigest']:
+            checksums = self.artifact.app_payload_checksums(include_manifest=True)
+        return bool(checksums and self.application.payload_matches(checksums))
+
     def verify(self, transaction_id):
         transaction = self.journal.read(transaction_id)
         if profile_digest(self.probe()) != transaction['deviceProfileDigest']:
             raise InstallerError('DEVICE_STATE_CHANGED', 'The device differs from the recorded transaction.', 8)
-        return {'ok': self.application.version() == transaction['plan']['version'],
+        matches = self.application.version() == transaction['plan']['version']
+        if matches and transaction['plan']['action'] == 'update':
+            matches = self._update_payload_matches(transaction)
+        return {'ok': matches,
                 'state': transaction['state'], 'uiConfirmed': False, 'homeConfirmed': False}
 
     def restore(self, transaction_id):
@@ -349,10 +366,14 @@ class InstallEngine:
             return {'ok': False, 'transactionId': transaction_id, 'state': transaction['state'],
                     'reasonCode': 'APP_VERSION_NOT_CONFIRMED', 'expectedVersion': expected,
                     'installedVersion': actual, 'changed': False}
+        if transaction['plan']['action'] == 'update' and not self._update_payload_matches(transaction):
+            return {'ok': False, 'transactionId': transaction_id, 'state': transaction['state'],
+                    'reasonCode': 'APP_CONTENT_NOT_CONFIRMED', 'installedVersion': actual, 'changed': False}
         result = {'ok': True, 'state': 'APP_INSTALLED', 'version': actual, 'changed': True,
                   'uiConfirmed': False, 'reconciled': True}
         transaction.update(state='COMMITTED', result=result)
-        transaction['events'].append({'action': 'verify-installed-version', 'status': 'confirmed'})
+        verification = 'verify-installed-content' if transaction['plan']['action'] == 'update' else 'verify-installed-version'
+        transaction['events'].append({'action': verification, 'status': 'confirmed'})
         self.journal.save(transaction)
         return dict(result, transactionId=transaction_id)
 

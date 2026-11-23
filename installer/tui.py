@@ -56,10 +56,15 @@ def run(engine, read=input, write=print):
                     from installer.application import Artifact
                     engine.artifact = Artifact(read('Release IPK path: ').strip())
                 plan = engine.plan(mode='home' if choice == '3' else 'app', action='update' if choice == '4' else 'install')
-                write('Integration Strategy: ' + (plan['adapter'] or 'App-only; LG Home remains unchanged'))
-                write('Change Plan\n' + json.dumps(plan, indent=2))
-                write('Approval: confirm the device and the exact changes above.')
-                if read('Type the plan digest to apply, or press Enter to cancel: ').strip() != plan['approvalDigest']:
+                if plan['mode'] == 'app-only':
+                    action = 'Update' if plan['action'] == 'update' else 'Install'
+                    write(f"{action} WiiOS {plan['version']} on {engine.transport.connection.endpoint}.")
+                    accepted = read('Continue? [y/N] ').strip().lower() in ('y', 'yes')
+                else:
+                    write('Integration Strategy: ' + str(plan['adapter']))
+                    write('Change Plan\n' + json.dumps(plan, indent=2))
+                    accepted = read('Type the plan digest to apply, or press Enter to cancel: ').strip() == plan['approvalDigest']
+                if not accepted:
                     write('Cancelled before mutation.')
                     continue
                 write('Progress: installing the approved package. The connection has finite timeouts.')

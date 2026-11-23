@@ -14,6 +14,7 @@ class PackageDevice:
     def __init__(self, artifact, complete=True):
         self.artifact, self.complete = artifact, complete
         self.installed = None
+        self.current_payload = False
         self.commands = []
 
     def execute(self, command, data=None, timeout=20):
@@ -22,12 +23,16 @@ class PackageDevice:
             return '{"id":"com.wiios.launcher","version":"' + self.installed + '"}' if self.installed else 'ABSENT'
         if command.startswith('sha256sum'):
             return self.artifact.digest + '  application.ipk'
+        if command.startswith('for app in ') and self.current_payload:
+            return '\n'.join(digest + '  ./' + name
+                             for name, digest in self.artifact.app_payload_checksums(include_manifest=True).items())
         return ''
 
     def luna(self, uri, payload):
         self.commands.append(uri)
         if self.complete:
             self.installed = None if uri.endswith('/remove') else self.artifact.version
+            self.current_payload = self.installed is not None
         return {'returnValue': True}
 
 
@@ -61,6 +66,20 @@ class ApplicationTests(unittest.TestCase):
         with self.assertRaises(InstallerError) as raised:
             ApplicationInstaller(device, sleep=lambda seconds: None).install(self.artifact, 'a' * 64)
         self.assertEqual(raised.exception.code, 'APP_INSTALL_UNCONFIRMED')
+
+    def test_update_replaces_different_contents_at_the_same_version(self):
+        device = PackageDevice(self.artifact)
+        device.installed = self.artifact.version
+        result = ApplicationInstaller(device).install(self.artifact, 'a' * 64, update=True)
+        self.assertTrue(result['changed'])
+        self.assertTrue(result['contentVerified'])
+        self.assertTrue(any('/dev/install' in command for command in device.commands))
+
+    def test_update_does_not_confirm_old_contents_at_the_same_version(self):
+        device = PackageDevice(self.artifact, complete=False)
+        device.installed = self.artifact.version
+        with self.assertRaisesRegex(InstallerError, 'contents could not be confirmed'):
+            ApplicationInstaller(device, sleep=lambda _: None).install(self.artifact, 'a' * 64, update=True)
 
     def test_application_removal_checks_absence(self):
         device = PackageDevice(self.artifact)

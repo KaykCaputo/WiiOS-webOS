@@ -67,7 +67,7 @@ class Artifact:
         except (ValueError, KeyError, UnicodeError, tarfile.TarError, OSError) as error:
             raise InstallerError('INVALID_ARTIFACT', 'The file is not a supported WiiOS application IPK.', 2) from error
 
-    def app_payload_checksums(self):
+    def app_payload_checksums(self, include_manifest=False):
         raw = self.path.read_bytes()
         if hashlib.sha256(raw).hexdigest() != self.digest:
             raise InstallerError('ARTIFACT_CHANGED', 'The selected IPK changed.', 8)
@@ -84,7 +84,7 @@ class Artifact:
                 name = item.name.removeprefix('./')
                 if item.isfile() and name.startswith(prefix):
                     relative = name[len(prefix):]
-                    if relative != 'appinfo.json':
+                    if include_manifest or relative != 'appinfo.json':
                         expected[relative] = hashlib.sha256(archive.extractfile(item).read()).hexdigest()
         return expected
 
@@ -115,11 +115,26 @@ class ApplicationInstaller:
             raise InstallerError('APP_STATE_UNKNOWN', 'The installed application metadata cannot be verified.', 5)
         return None
 
-    def install(self, artifact, transaction_id):
+    def payload_matches(self, checksums):
+        if not checksums:
+            return False
+        files = ' '.join(shlex.quote('./' + name) for name in checksums)
+        candidates = ' '.join(shlex.quote(path) for path in APP_PATHS)
+        command = ('for app in ' + candidates + '; do '
+                   'if [ -f "$app/appinfo.json" ]; then '
+                   '(cd "$app" && sha256sum ' + files + ' 2>/dev/null); exit 0; '
+                   'fi; done')
+        output = self.transport.execute(command)
+        actual = [line.split()[0] for line in output.splitlines() if line.strip()]
+        return actual == list(checksums.values())
+
+    def install(self, artifact, transaction_id, update=False):
         artifact.recheck()
         current = self.version()
-        if current == artifact.version:
-            return {'ok': True, 'state': 'APP_INSTALLED', 'version': current, 'changed': False, 'uiConfirmed': False}
+        checksums = artifact.app_payload_checksums(include_manifest=True) if update else None
+        if current == artifact.version and (not update or self.payload_matches(checksums)):
+            return {'ok': True, 'state': 'APP_INSTALLED', 'version': current, 'changed': False,
+                    'uiConfirmed': False, 'contentVerified': update}
         if not re.fullmatch(r'[a-f0-9]{64}', transaction_id):
             raise InstallerError('INVALID_TRANSACTION', 'Invalid transaction ID.', 2)
         directory = '/media/developer/temp/wiios-' + transaction_id
@@ -134,11 +149,13 @@ class ApplicationInstaller:
         if response.get('returnValue') is not True:
             raise InstallerError('APP_INSTALL_REJECTED', 'The TV rejected application installation.', 5)
         for attempt in range(15):
-            if self.version() == artifact.version:
+            if self.version() == artifact.version and (not update or self.payload_matches(checksums)):
                 self.transport.execute('rm ' + shlex.quote(package) + ' && rmdir ' + shlex.quote(directory))
-                return {'ok': True, 'state': 'APP_INSTALLED', 'version': artifact.version, 'changed': True, 'uiConfirmed': False}
+                return {'ok': True, 'state': 'APP_INSTALLED', 'version': artifact.version, 'changed': True,
+                        'uiConfirmed': False, 'contentVerified': update}
             self.sleep(2)
-        raise InstallerError('APP_INSTALL_UNCONFIRMED', 'Installation was accepted but the installed version was not confirmed.', 5)
+        detail = 'package contents' if update else 'version'
+        raise InstallerError('APP_INSTALL_UNCONFIRMED', f'Installation was accepted but the installed {detail} could not be confirmed.', 5)
 
     def launch(self):
         response = self.transport.luna('luna://com.webos.applicationManager/launch', {'id': APP_ID})

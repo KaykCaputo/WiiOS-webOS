@@ -116,18 +116,24 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.controller.model.page, 'plan')
         self.assertTrue(any('LG Home unchanged' in line for line in self.controller.model.lines))
         self.controller.dispatch_key('a')
-        self.assertEqual(self.controller.model.page, 'input')
-        self.assertEqual(self.controller.model.input_label, 'Type INSTALL')
-        self.controller.submit('approve', 'INSTALL')
         self.assertEqual(self.controller.model.page, 'result')
         self.engine.apply.assert_called_once_with(self.plan, self.plan['approvalDigest'])
         self.assertFalse(any('approvalDigest' in line for line in self.controller.model.lines))
 
-    def test_invalid_confirmation_makes_no_mutation(self):
+    def test_cancelling_application_plan_makes_no_mutation(self):
         self.controller.choose('1')
+        self.controller.dispatch_key('\x1b')
+        self.engine.apply.assert_not_called()
+        self.assertEqual(self.controller.model.page, 'menu')
+
+    def test_home_plan_still_requires_explicit_confirmation(self):
+        self.plan.update(mode='home-replacement', adapter='qml-redirect', transactionId='b' * 64)
+        self.engine.journal.path.return_value.exists.return_value = False
+        self.controller.choose('3')
+        self.controller.dispatch_key('a')
+        self.assertEqual(self.controller.model.input_label, 'Type REPLACE HOME')
         self.controller.submit('approve', 'WRONG')
         self.engine.apply.assert_not_called()
-        self.assertEqual(self.controller.model.page, 'result')
 
     def test_home_plan_is_still_blocked_on_unqualified_firmware(self):
         self.engine.plan.side_effect = InstallerError('HOME_NOT_RELEASE_QUALIFIED', 'No approved adapter.', 3)

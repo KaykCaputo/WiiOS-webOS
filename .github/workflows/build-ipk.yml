@@ -34,14 +34,19 @@ jobs:
       - name: Test application, installer, and Home recovery
         run: npm test
 
-      - name: Build IPK
-        run: python3 scripts/build.py
+      - name: Build release assets
+        run: |
+          python3 scripts/build.py
+          python3 scripts/build.py --home-chooser
+          python3 -m scripts.prepare_release --repository "$GITHUB_REPOSITORY" --revision "$GITHUB_SHA"
 
-      - name: Verify checksum
+      - name: Verify release assets
         working-directory: dist
-        run: sha256sum --check *.sha256
+        run: |
+          sha256sum --check *.sha256
+          python3 -m zipfile -t wiios-home-chooser.zip
 
-      - name: Upload IPK and checksum
+      - name: Upload release assets
         uses: actions/upload-artifact@v7
         with:
           name: wiios-ipk-${{ github.sha }}
@@ -51,6 +56,8 @@ jobs:
             dist/*.pyz
             dist/*.pyz.sha256
             dist/build-manifest.json
+            dist/com.wiios.launcher.manifest.json
+            dist/wiios-home-chooser.zip
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -81,9 +88,13 @@ jobs:
             exit 0
           fi
           NOTES="docs/releases/${TAG}.md"
+          ASSETS=(release-assets/*.ipk release-assets/*.ipk.sha256
+                  release-assets/*.pyz release-assets/*.pyz.sha256
+                  release-assets/build-manifest.json release-assets/com.wiios.launcher.manifest.json
+                  release-assets/wiios-home-chooser.zip)
           if [ -f "$NOTES" ]; then
-            gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --notes-file "$NOTES"
+            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "WiiOS $VERSION" --notes-file "$NOTES"
           else
-            gh release create "$TAG" release-assets/*.ipk release-assets/*.ipk.sha256 release-assets/*.pyz release-assets/*.pyz.sha256 release-assets/build-manifest.json --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
+            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "WiiOS $VERSION" --generate-notes
           fi
 

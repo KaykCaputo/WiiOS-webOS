@@ -6,6 +6,11 @@ from compatibility.signatures import profile_digest
 
 ADAPTERS = {'qml': 'qml-redirect', 'native': 'native-home-standin',
             'web': 'home-directory-takeover', 'flutter': 'home-directory-takeover'}
+ADAPTER_CAPABILITIES = {
+    'qml-redirect': (),
+    'native-home-standin': ('nativeHomeLifecycle', 'webAppManager'),
+    'home-directory-takeover': ('samManifestReload',),
+}
 
 
 def load_verified():
@@ -54,6 +59,7 @@ def resolve(profile, entries=None, artifact_digest=None):
     elif home.get('namespaceVerified') is not True:
         decision.update(reasonCodes=['HOME_NAMESPACE_UNVERIFIED'])
     else:
+        missing_capabilities = set()
         for entry in entries:
             validate_document(entry, 'compatibility-entry')
             qualification = entry['homeReplacement']
@@ -76,13 +82,20 @@ def resolve(profile, entries=None, artifact_digest=None):
                     qualification.get('nativeContract') not in ('register-app-v2', 'register-native-app-v1') or
                     not qualification.get('wamLaunchSha256')):
                 continue
-            if any(capabilities.get(key) != 'available' for key in qualification['requiredCapabilities']):
+            required = set(qualification['requiredCapabilities']).union(ADAPTER_CAPABILITIES[candidate])
+            missing = {key for key in required if capabilities.get(key) != 'available'}
+            if missing:
+                missing_capabilities.update(missing)
                 continue
             if profile.get('recovery', {}).get('independentTestPassed') is not True:
                 decision['reasonCodes'] = ['RECOVERY_NOT_TESTED']
                 return decision
             decision.update(selectedMode='home-replacement', selectedHomeAdapter=qualification['adapter'],
                             homeStatus='HOME_ELIGIBLE', requiresApproval=True, profileId=entry['profileId'])
+            return decision
+        if missing_capabilities:
+            decision.update(homeStatus='BLOCKED', reasonCodes=['HOME_CAPABILITIES_UNVERIFIED'],
+                            missingHomeCapabilities=sorted(missing_capabilities))
             return decision
         decision.update(homeStatus='HOME_EXPERIMENTAL' if candidate else 'UNKNOWN',
                         reasonCodes=['HOME_FINGERPRINT_NOT_VERIFIED'])

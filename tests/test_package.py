@@ -14,6 +14,21 @@ spec.loader.exec_module(build)
 
 
 class PackageTest(unittest.TestCase):
+    def test_home_chooser_variant_has_an_opt_in_manifest_and_keeps_the_app_id(self):
+        with tempfile.TemporaryDirectory() as dest:
+            standard = build.build(output=dest)
+            original = standard.read_bytes()
+            candidate = build.build(output=dest, home_chooser=True)
+            self.assertEqual(candidate.name, standard.name)
+            self.assertEqual(candidate.parent, standard.parent / 'home-chooser')
+            self.assertEqual(standard.read_bytes(), original)
+            source = json.loads((standard.parent / 'app/appinfo.json').read_bytes())
+            staged = json.loads((candidate.parent / 'app/appinfo.json').read_bytes())
+            self.assertEqual(staged, dict(source, appCategory=['home']))
+            flag = 'window.WIIOS_HOME_CHOOSER = true;'
+            self.assertIn(flag, (candidate.parent / 'app/audio-assets.js').read_text())
+            self.assertNotIn(flag, (standard.parent / 'app/audio-assets.js').read_text())
+
     def test_build_rejects_an_entrypoint_asset_missing_from_the_package(self):
         files = tuple(name for name in build.FILES if name != 'home-runtime.js')
         with tempfile.TemporaryDirectory() as dest, mock.patch.object(build, 'FILES', files):
@@ -37,6 +52,8 @@ class PackageTest(unittest.TestCase):
                 prefix = 'usr/palm/applications/com.wiios.launcher/'
                 self.assertIn(prefix + 'home-runtime.js', names)
                 self.assertIn(prefix + 'artwork.js', names)
+                self.assertEqual(archive.extractfile(prefix + 'assets/static.png').read(),
+                                 (ROOT / 'assets/static.png').read_bytes())
                 self.assertIn(prefix + 'library.js', names)
                 for sound in ('menu', 'hover', 'select', 'back', 'page', 'start'):
                     paths = sorted((ROOT / 'assets/audio').glob(sound + '.*'))

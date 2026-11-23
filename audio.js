@@ -1,9 +1,10 @@
 (function (root) {
   'use strict';
   var music = new Audio(), context, gain, buffers = {}, loading = {}, sources = [], urls = {};
-  var assets = root.WII_AUDIO_ASSETS || {}, unlocked = false, suspended = false;
+  var assets = root.WII_AUDIO_ASSETS || {}, effectsReady = false, suspended = false;
   var preferences = {enabled: true, music: 0.35, effects: 0.6}, errors = {};
   var names = ['menu', 'hover', 'select', 'back', 'page', 'start'];
+  var effects = names.slice(1);
   try {
     var saved = JSON.parse(localStorage.getItem('wiios.audio.v2'));
     if (saved) {
@@ -16,8 +17,9 @@
   music.loop = true; music.preload = 'auto'; music.volume = preferences.music;
   if (assets.menu) music.src = assets.menu;
   music.onerror = function () { errors.menu = 'Unable to play music.'; };
-  function playMusic() {
+  function playMusic(restart) {
     if (suspended || document.hidden || !preferences.enabled || !assets.menu || preferences.music === 0) return;
+    if (!restart && music.paused === false && !music.ended) return;
     try {
       var promise = music.play();
       if (promise && promise.catch) promise.catch(function () { errors.menu = 'Press OK to enable audio.'; });
@@ -26,7 +28,7 @@
   music.onended = function () {
     if (suspended || document.hidden || !preferences.enabled || preferences.music === 0) return;
     try { music.currentTime = 0; } catch (ignore) {}
-    playMusic();
+    playMusic(true);
   };
   function decode(key, data, done) {
     if (!context) { if (done) done('Web Audio unavailable.'); return; }
@@ -36,11 +38,13 @@
     }, function () { errors[key] = 'Unsupported audio format.'; if (done) done(errors[key]); });
   }
   function loadEffects() {
-    names.slice(1).forEach(function (key) {
-      if (!assets[key] || buffers[key] || loading[key]) return;
+    if (effectsReady) return;
+    var missing = false;
+    effects.forEach(function (key) {
+      if (!assets[key] || buffers[key]) return;
+      missing = true;
+      if (loading[key]) return;
       loading[key] = true;
-      // Every exit clears the flag, so a failed load can be tried again; while
-      // it is set, parallel calls skip the effect instead of racing it.
       var settle = function () { delete loading[key]; };
       var xhr = new XMLHttpRequest();
       xhr.open('GET', assets[key], true); xhr.responseType = 'arraybuffer'; xhr.timeout = 8000;
@@ -51,9 +55,9 @@
       xhr.onerror = xhr.ontimeout = function () { errors[key] = 'Unable to load sound effect.'; settle(); };
       xhr.send();
     });
+    effectsReady = !missing;
   }
   function unlock() {
-    unlocked = true;
     if (!context) {
       var AC = root.AudioContext || root.webkitAudioContext;
       if (AC) {

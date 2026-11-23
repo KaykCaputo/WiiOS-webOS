@@ -85,3 +85,8 @@ class QualifiedPlanningTests(unittest.TestCase):
         rule['homeReplacement']['nativeContract'] = 'register-native-app-v1'
         rule['homeReplacement']['wamLaunchSha256'] = 'f' * 64
         self.assertEqual(resolve(device, [rule], 'c' * 64)['homeStatus'], 'HOME_ELIGIBLE')
+        device['capabilities']['webAppManager'] = 'unknown'
+        blocked = resolve(device, [rule], 'c' * 64)
+        self.assertEqual(blocked['homeStatus'], 'BLOCKED')
+        self.assertEqual(blocked['missingHomeCapabilities'], ['webAppManager'])
+        self.assertEqual(blocked['selectedMode'], 'app-only')

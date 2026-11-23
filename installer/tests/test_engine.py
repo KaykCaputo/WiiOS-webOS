@@ -49,12 +49,14 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(self.engine.journal.read(plan['transactionId'])['state'], 'COMMITTED')
 
     def test_ht20_tui_uses_identical_engine_plan_and_approval(self):
-        plan = self.engine.plan(mode='app')
-        answers = iter(['1', plan['approvalDigest'], '0'])
+        answers = iter(['4', 'y', '0'])
         output = []
         run(self.engine, read=lambda prompt: next(answers), write=output.append)
-        self.assertTrue(any(plan['approvalDigest'] in text for text in output))
-        self.application.install.assert_called_once_with(self.artifact, plan['transactionId'])
+        transaction_id = self.application.install.call_args.args[1]
+        plan = self.engine.journal.read(transaction_id)['plan']
+        self.assertTrue(any(f"Update WiiOS {plan['version']}" in text for text in output))
+        self.assertFalse(any(plan['approvalDigest'] in text for text in output))
+        self.application.install.assert_called_once_with(self.artifact, plan['transactionId'], update=True)
 
     def test_tui_cancel_has_no_mutation(self):
         answers = iter(['1', '', '0'])
@@ -110,6 +112,19 @@ class EngineTests(unittest.TestCase):
         result = self.engine.reconcile_transaction(plan['transactionId'])
         self.assertEqual(result['reasonCode'], 'APP_VERSION_NOT_CONFIRMED')
         self.assertEqual(self.engine.journal.read(plan['transactionId'])['state'], 'RECONCILE_REQUIRED')
+
+    def test_update_reconciliation_checks_contents_when_version_already_matches(self):
+        plan = self.engine.plan(mode='app', action='update')
+        self.assertNotEqual(plan['transactionId'], self.engine.plan(mode='app', action='update')['transactionId'])
+        self.application.install.side_effect = InstallerError('TRANSPORT_TIMEOUT', 'Disconnected.', 4)
+        with self.assertRaises(InstallerError):
+            self.engine.apply(plan, plan['approvalDigest'])
+        self.application.version.return_value = self.artifact.version
+        self.application.payload_matches.return_value = False
+        result = self.engine.reconcile_transaction(plan['transactionId'])
+        self.assertEqual(result['reasonCode'], 'APP_CONTENT_NOT_CONFIRMED')
+        self.application.payload_matches.return_value = True
+        self.assertTrue(self.engine.reconcile_transaction(plan['transactionId'])['reconciled'])
 
     def test_reconciliation_refuses_changed_firmware_and_host(self):
         plan = self.engine.plan(mode='app')
