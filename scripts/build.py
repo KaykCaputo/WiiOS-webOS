@@ -17,6 +17,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
+IPK_MTIME = 1577836800
 
 
 class LocalAssets(HTMLParser):
@@ -54,11 +55,13 @@ def compressed_tar(files):
             item = tarfile.TarInfo(name)
             item.type = tarfile.DIRTYPE
             item.mode = 0o755
+            item.mtime = IPK_MTIME
             archive.addfile(item)
         for name, content in sorted(files.items()):
             item = tarfile.TarInfo(name)
             item.size = len(content)
             item.mode = 0o644
+            item.mtime = IPK_MTIME
             archive.addfile(item, io.BytesIO(content))
     return gzip.compress(buffer.getvalue(), mtime=0)
 

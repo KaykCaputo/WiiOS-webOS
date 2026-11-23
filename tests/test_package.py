@@ -48,6 +48,7 @@ class PackageTest(unittest.TestCase):
                 members[header[:16].decode().strip().rstrip('/')] = raw[offset + 60:offset + 60 + size]
                 offset += 60 + size + (size % 2)
             with tarfile.open(fileobj=io.BytesIO(members['data.tar.gz']), mode='r:gz') as archive:
+                self.assertTrue(all(member.mtime == build.IPK_MTIME > 0 for member in archive.getmembers()))
                 names = set(archive.getnames())
                 prefix = 'usr/palm/applications/com.wiios.launcher/'
                 self.assertIn(prefix + 'home-runtime.js', names)

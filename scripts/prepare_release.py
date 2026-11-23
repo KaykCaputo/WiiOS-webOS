@@ -25,7 +25,7 @@ def prepare_release(output, repository, revision):
             Artifact(source, digest).version != version):
         raise ValueError('The Home Chooser package does not match the release.')
 
-    public_ipk = output / f'{app_id}_{version}_home_chooser_all.ipk'
+    public_ipk = output / f'{app_id}_{version}_homebrew_all.ipk'
     public_ipk.write_bytes(payload)
     public_ipk.with_suffix('.ipk.sha256').write_text(f'{digest}  {public_ipk.name}\n')
 
@@ -34,7 +34,7 @@ def prepare_release(output, repository, revision):
         archive.writestr(ZipInfo(filename), payload)
         archive.writestr(ZipInfo(f'{filename}.sha256'), checksum)
 
-    catalog = output / f'{app_id}.manifest.json'
+    catalog = output / f'{app_id}.homebrew.manifest.json'
     manifest = {
         'id': app_id,
         'version': version,

@@ -56,7 +56,7 @@ jobs:
             dist/*.pyz
             dist/*.pyz.sha256
             dist/build-manifest.json
-            dist/com.wiios.launcher.manifest.json
+            dist/com.wiios.launcher.homebrew.manifest.json
             dist/wiios-home-chooser.zip
           if-no-files-found: error
           retention-days: 30
@@ -90,7 +90,7 @@ jobs:
           NOTES="docs/releases/${TAG}.md"
           ASSETS=(release-assets/*.ipk release-assets/*.ipk.sha256
                   release-assets/*.pyz release-assets/*.pyz.sha256
-                  release-assets/build-manifest.json release-assets/com.wiios.launcher.manifest.json
+                  release-assets/build-manifest.json release-assets/com.wiios.launcher.homebrew.manifest.json
                   release-assets/wiios-home-chooser.zip)
           if [ -f "$NOTES" ]; then
             gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" --title "WiiOS $VERSION" --notes-file "$NOTES"
