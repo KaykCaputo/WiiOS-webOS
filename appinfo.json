@@ -1,6 +1,6 @@
 {
   "id": "com.wiios.launcher",
-  "version": "0.3.40",
+  "version": "0.3.41",
   "vendor": "WiiOS Community",
   "type": "web",
   "main": "index.html",
