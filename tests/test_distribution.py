@@ -41,7 +41,7 @@ class DistributionTests(unittest.TestCase):
                 shutil.copytree(source / folder, root / folder,
                                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
             for name in ('appinfo.json', 'package.json', 'package-lock.json', 'index.html',
-                         'style.css', 'bridge.js', 'channels.js', 'library.js', 'artwork.js', 'thumbnails.js',
+                         'style.css', 'bridge.js', 'channels.js', 'library.js', 'artwork.js', 'thumbnails.js', 'performance.js',
                          'audio.js', 'stats.js', 'home-chooser.js', 'ssap-provider.js', 'app.js', 'home-runtime.js', 'icon.png', 'LICENSE', 'NOTICE'):
                 shutil.copy2(source / name, root / name)
             output = root / 'dist'

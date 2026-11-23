@@ -2,6 +2,7 @@
   'use strict';
   var TV = window.WiiTV, Model = window.WiiChannels, Sound = window.WiiAudio;
   var thumbnails = window.WiiThumbnails;
+  var measure = window.WiiPerformance ? window.WiiPerformance.mark : function () {};
   var preview = !TV.isTV, storage;
   try { storage = window.localStorage; } catch (ignore) { storage = {getItem: function () { return null; }, setItem: function () { throw new Error('Storage unavailable'); }}; }
   var initial = Model.load(storage, preview), channels = initial.channels;
@@ -220,7 +221,7 @@
     if (!tooltip.hidden) tooltip.hidden = true;
   }
   function movePointer(event) {
-    if (event.screenX === pointerX && event.screenY === pointerY) return;
+    if (event.screenX === pointerX && event.screenY === pointerY) {measure('stationaryPointer'); return;}
     pointerX = event.screenX; pointerY = event.screenY;
     if (mode !== 'menu' || !event.target.closest) return;
     var button = event.target.closest('.channel');
@@ -228,6 +229,7 @@
     var index = Number(button.getAttribute('data-slot'));
     if (Math.floor(index / 12) !== page) return;
     if (selected !== index || !focusVisible) {
+      measure('pointerFocus');
       hideTooltip(); noteGridInput(); Sound.effect('hover');
       selected = index; focusVisible = true; queueHighlight();
     }
@@ -243,6 +245,7 @@
     if (shownPage !== page) updatePage();
     var next = focusVisible ? selected : -1;
     if (highlighted !== next) {
+      measure('paintedFocus');
       if (slots[highlighted]) slots[highlighted].classList.remove('selected');
       if (slots[next]) slots[next].classList.add('selected');
       highlighted = next;
@@ -296,6 +299,7 @@
       }
     }
     if (!pending.length) return;
+    measure('artworkBatch');
     var batch = document.createElement('div');
     batch.innerHTML = markup;
     for (var i = 0; i < pending.length; i++) {
@@ -397,6 +401,7 @@
     var track = $('channel-track'), pages = track.children;
     var previous = shownPage;
     if (shownPage !== page) {
+      measure('paintedPage');
       if (shownPage >= 0) setPageFocus(shownPage, false);
       setPageFocus(page, true);
       shownPage = page;
@@ -443,10 +448,12 @@
   }
   function switchPage(target) {
     if (mode !== 'menu' || target < 0 || target > 3 || target === page) return;
+    measure('pageInput');
     noteGridInput();
     selected = target * 12 + selected % 12; page = target; focusChannel(true); Sound.effect('page');
   }
   function move(dx, dy) {
+    measure('directionInput');
     noteGridInput();
     var col = selected % 4, row = Math.floor((selected % 12) / 4);
     if (dy === 1 && row === 2 && carrying < 0) { focusVisible = false; highlight(); (col < 2 ? $('settings') : $('apps')).focus(); return; }

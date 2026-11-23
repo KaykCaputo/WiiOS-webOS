@@ -224,6 +224,30 @@ test('the strip renderer remains available for frame pacing comparisons',()=>{
     assert.ok(Array.from(track.children).every(page=>page.style.transform===''));
   } finally {a.close();}
 });
+test('frame pacing diagnostics run only during an explicit sample',()=>{
+  const a=app({manualFrames:true});
+  try {
+    a.w.eval(read('performance.js'));
+    const measure=a.w.WiiPerformance;
+    assert.equal(a.frames.size,0);
+    assert.equal(measure.start(),true);
+    assert.equal(measure.start(),false);
+    for(const time of [0,16,32,84]) {
+      const callback=a.frames.values().next().value;
+      a.frames.clear();
+      callback(time);
+    }
+    measure.mark('directionInput');
+    const report=measure.stop();
+    assert.equal(report.intervals,3);
+    assert.equal(report.p50Ms,16);
+    assert.equal(report.p95Ms,52);
+    assert.equal(report.over33Ms,1);
+    assert.equal(report.events.directionInput,1);
+    assert.equal(a.frames.size,0);
+    assert.equal(measure.stop(),null);
+  } finally {a.close();}
+});
 test('a stationary pointer does not override directional selection during a page slide',()=>{
   const effects=[];
   const a=app({tv:true,images:true,manualFrames:true,effect:key=>effects.push(key)});
