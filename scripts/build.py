@@ -16,7 +16,7 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'home-chooser.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png', 'assets/channel-focus.png')
+FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'thumbnails.js', 'audio.js', 'home-chooser.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png', 'assets/channel-focus.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
 IPK_MTIME = 1577836800
 

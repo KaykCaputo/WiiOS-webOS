@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   var TV = window.WiiTV, Model = window.WiiChannels, Sound = window.WiiAudio;
+  var thumbnails = window.WiiThumbnails;
   var preview = !TV.isTV, storage;
   try { storage = window.localStorage; } catch (ignore) { storage = {getItem: function () { return null; }, setItem: function () { throw new Error('Storage unavailable'); }}; }
   var initial = Model.load(storage, preview), channels = initial.channels;
@@ -18,6 +19,7 @@
   var shownPage = -1, slideStart = 0, slideEnd = 0;
   var focusFrame = null, warmTimer = null, warmPage = 1;
   var pointerX = null, pointerY = null;
+  var thumbnailTimer = null, thumbnailBusy = false, thumbnailReady = null, thumbnailDraw = null, artScale = 1;
   var lastGridInput = 0, libraryTimer = null, lastRefresh = 0;
   var artworkTimer = null, pendingArtwork = false, pendingIcons = false, fetchingIcons = false;
   var lastClock = '', lastDate = '';
@@ -36,9 +38,14 @@
     if (width === lastWidth && height === lastHeight) return;
     lastWidth = width; lastHeight = height;
     var scale = Math.min(width / 1280, height / 720), stage = $('stage');
+    var oldArtScale = artScale;
+    artScale = scale * (window.devicePixelRatio || 1);
     stage.style.transform = 'scale(' + scale + ')';
     stage.style.left = ((width - 1280 * scale) / 2) + 'px';
     stage.style.top = ((height - 720 * scale) / 2) + 'px';
+    if (thumbnails && artScale > oldArtScale) surfaces.forEach(function (surface) {
+      releaseThumbnail(surface); attachThumbnail(surface);
+    });
   }
 
   function resolveAppImage(channelId) {
@@ -97,7 +104,7 @@
     };
     return map[channel.id] || {symbol:(channel.name || '?').slice(0,2).toUpperCase(), className:'glyph-generic'};
   }
-  function artwork(channel, fallback, choice, attempts) {
+  function artwork(channel, fallback, choice, attempts, grid) {
     var image = resolveAppImage(channel.id);
     var generated;
     if (typeof choice !== 'number') choice = selectedImage(channel.id);
@@ -105,7 +112,8 @@
     if (image && !fallback && choice >= 0 && image.choices[choice]) {
       var picture = image.choices[choice];
       return '<span class="art art-app art-app-' + picture.kind + '" style="background-color:' + escapeHtml((picture.kind === 'icon' && picture.background) || image.background) + ';">' +
-        '<img class="app-image" data-choice="' + choice + '" data-attempts="' + attempts + '" src="' + escapeHtml(picture.src) + '" alt="" draggable="false">' +
+        '<img class="app-image" data-choice="' + choice + '" data-attempts="' + attempts + '"' +
+        (grid && thumbnails ? ' data-grid-src="' : ' src="') + escapeHtml(picture.src) + '" alt="" draggable="false">' +
         '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
     var theme = channel.theme, content = '', hdmi = /^com\.webos\.app\.hdmi/.test(channel.id);
@@ -191,14 +199,18 @@
   function fallbackImage(event) {
     var image = event.target;
     if (image.tagName !== 'IMG' || !image.classList.contains('app-image')) return;
+    if (thumbnails && thumbnails.restore(image)) return;
     var parent = image.parentNode && image.parentNode.parentNode;
     if (!parent || !document.documentElement.contains(parent)) return;
     var index = parent.id === 'channel-banner' ? selected : Number(parent.parentNode.getAttribute('data-slot'));
     var art = resolveAppImage(channels[index].id);
     var attempted = Number(image.getAttribute('data-attempts')) + 1;
     var next = art && art.choices.length ? (Number(image.getAttribute('data-choice')) + 1) % art.choices.length : -1;
+    var grid = parent.id !== 'channel-banner';
+    if (grid) releaseThumbnail(parent);
     parent.innerHTML = artwork(channels[index],
-      !art || attempted >= art.choices.length, next, attempted);
+      !art || attempted >= art.choices.length, next, attempted, grid);
+    if (grid) attachThumbnail(parent);
   }
   function hideTooltip() {
     clearTimeout(tooltipTimer);
@@ -260,13 +272,16 @@
     var channel = channels[index], image = resolveAppImage(channel.id);
     var preference = imagePreferences[channel.id], previous = slotArtwork[index];
     if (previous && previous.channel === channel && previous.image === image && previous.preference === preference) return null;
-    var markup = channel.id ? artwork(channel) : '';
+    var markup = channel.id ? artwork(channel, false, undefined, 0, true) : '';
     slotArtwork[index] = {channel: channel, image: image, preference: preference, markup: markup};
     return previous && previous.markup === markup ? null : markup;
   }
   function paintSlot(index) {
     var markup = slotMarkup(index);
-    if (markup !== null) surfaces[index].innerHTML = markup;
+    if (markup === null) return;
+    releaseThumbnail(surfaces[index]);
+    surfaces[index].innerHTML = markup;
+    attachThumbnail(surfaces[index]);
   }
   function mountPageArtwork() {
     var pending = [], markup = '';
@@ -284,11 +299,38 @@
     batch.innerHTML = markup;
     for (var i = 0; i < pending.length; i++) {
       surfaces[pending[i]].appendChild(batch.children[i].firstChild);
+      attachThumbnail(surfaces[pending[i]]);
     }
   }
   function artworkInRange(index, slot, start, end) {
     return (index >= start && index <= end) || (index === start - 1 && slot % 4 === 3) ||
       (index === end + 1 && slot % 4 === 0);
+  }
+  function releaseThumbnail(surface) {
+    if (thumbnails) thumbnails.release(surface.querySelector('.app-image'));
+  }
+  function attachThumbnail(surface) {
+    if (thumbnails) thumbnails.attach(surface.querySelector('.app-image'), artScale, queueThumbnails);
+  }
+  function queueThumbnails() {
+    if (!thumbnails || thumbnailTimer !== null || (thumbnailBusy && !thumbnailDraw) ||
+        document.hidden || mode !== 'menu' || pageTimer !== null) return;
+    thumbnailTimer = setTimeout(processThumbnail, Math.max(40, 400 - (Date.now() - lastGridInput)));
+  }
+  function processThumbnail() {
+    thumbnailTimer = null;
+    if (document.hidden || mode !== 'menu' || pageTimer !== null) return;
+    if (Date.now() - lastGridInput < 400) {queueThumbnails(); return;}
+    if (thumbnailDraw) {
+      var draw = thumbnailDraw; thumbnailDraw = null; draw(); return;
+    }
+    if (thumbnailReady) {thumbnailReady(); thumbnailReady = null;}
+    thumbnailBusy = true;
+    if (!thumbnails.prepare(function (draw) {
+      thumbnailDraw = draw; queueThumbnails();
+    }, function (apply) {
+      thumbnailBusy = false; thumbnailReady = apply; queueThumbnails();
+    })) thumbnailBusy = false;
   }
   function queuePageWarmup() {
     if (warmTimer !== null || document.hidden || mode !== 'menu' || pageTimer !== null || warmPage === page) return;
@@ -320,11 +362,13 @@
       if (Math.abs(p - page) > 1) pages[p].style.visibility = 'hidden';
       for (var i = p * 12; i < p * 12 + 12; i++) {
         if (!slotArtwork[i] || artworkInRange(p, i, page, page) || artworkInRange(p, i, warmPage, warmPage)) continue;
+        releaseThumbnail(surfaces[i]);
         if (surfaces[i].firstChild) surfaces[i].textContent = '';
         slotArtwork[i] = null;
       }
     }
     queuePageWarmup();
+    queueThumbnails();
   }
   function noteGridInput() {
     lastGridInput = Date.now();
@@ -459,7 +503,7 @@
     dialogConfirm = null; dialogBack = null; dialogControls = []; coverMenu(mode !== 'menu');
     if (returnFocus && document.documentElement.contains(returnFocus)) returnFocus.focus();
     else if (mode === 'menu') focusChannel(); else $('channel-start').focus();
-    if (mode === 'menu') { queueArtwork(false, true); queuePageWarmup(); }
+    if (mode === 'menu') { queueArtwork(false, true); queuePageWarmup(); queueThumbnails(); }
   }
   function dialog(title, info, markup, confirmLabel, confirm, back) {
     if (dialogCleanup) { dialogCleanup(); dialogCleanup = null; }
@@ -484,6 +528,7 @@
     Sound.resume(); Sound.effect('back'); focusChannel();
     queueArtwork(false, true);
     queuePageWarmup();
+    queueThumbnails();
   }
   function openChannel() {
     hideTooltip();
@@ -846,6 +891,9 @@
   document.addEventListener('mousemove', movePointer);
   document.addEventListener('mousedown', function () { Sound.unlock(); });
   document.addEventListener('error', fallbackImage, true);
+  if (thumbnails) document.addEventListener('load', function (event) {
+    if (event.target.tagName === 'IMG') thumbnails.loaded(event.target);
+  }, true);
   $('prev').onclick = function () { switchPage(page - 1); }; $('next').onclick = function () { switchPage(page + 1); };
   $('settings').onclick = settings; $('apps').onclick = library; $('audio-settings').onclick = audioSettings;
   $('channel-back').onclick = backHome; $('channel-start').onclick = launch;
@@ -855,7 +903,7 @@
   document.addEventListener('visibilitychange', function () {
     $('stage').classList.toggle('backgrounded', document.hidden); clearInterval(clockTimer);
     if (document.hidden) { cancelHold(); hideTooltip(); clearTimeout(pageTimer); clearTimeout(warmTimer); warmTimer = null; trimPages(); highlight(); }
-    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); queueArtwork(false, true); queuePageWarmup(); }
+    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); queueArtwork(false, true); queuePageWarmup(); queueThumbnails(); }
   });
   document.addEventListener('webOSRelaunch', function () { if (mode === 'channel') backHome(); });
   try { reduced = storage.getItem('wiios.motion') === 'reduced'; } catch (ignore) {}
