@@ -67,6 +67,8 @@ class PackageTest(unittest.TestCase):
                                  (ROOT / 'assets/static.png').read_bytes())
                 self.assertEqual(archive.extractfile(prefix + 'assets/channel-focus.png').read(),
                                  (ROOT / 'assets/channel-focus.png').read_bytes())
+                self.assertEqual(archive.extractfile(prefix + 'assets/disc.svg').read(),
+                                 (ROOT / 'assets/disc.svg').read_bytes())
                 self.assertIn(prefix + 'library.js', names)
                 for sound in ('menu', 'hover', 'select', 'back', 'page', 'start'):
                     paths = sorted((ROOT / 'assets/audio').glob(sound + '.*'))

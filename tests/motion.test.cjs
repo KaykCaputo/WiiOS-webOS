@@ -7,6 +7,12 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 function app(options = {}) {
   const dom = new JSDOM(read('index.html'), {url:'http://wiios.test',runScripts:'outside-only',pretendToBeVisual:true});
   const w = dom.window, intervals = [], timeouts = [];
+  const frames = new Map();
+  let frameId = 0;
+  if (options.manualFrames) {
+    w.requestAnimationFrame = fn => {frames.set(++frameId, fn);return frameId;};
+    w.cancelAnimationFrame = id => frames.delete(id);
+  }
   const originalInterval = w.setInterval;
   w.setInterval = (fn, ms) => {intervals.push({fn,ms});return originalInterval(fn,ms);};
   const originalTimeout = w.setTimeout;
@@ -29,7 +35,9 @@ function app(options = {}) {
   w.WiiArt.source=channel=>{generated++;return originalSource(channel);};
   w.eval(read('app.js'));
   function key(code){w.document.dispatchEvent(new w.KeyboardEvent('keydown',{keyCode:code,bubbles:true,cancelable:true}));w.document.dispatchEvent(new w.KeyboardEvent('keyup',{keyCode:code,bubbles:true,cancelable:true}));}
-  return {w,d:w.document,key,intervals,timeouts,generated:()=>generated,close:()=>w.close(),wait:ms=>new Promise(resolve=>setTimeout(resolve,ms))};
+  return {w,d:w.document,key,intervals,timeouts,frames,
+    paint(){const pending=Array.from(frames.values());frames.clear();pending.forEach(fn=>fn(0));},
+    generated:()=>generated,close:()=>w.close(),wait:ms=>new Promise(resolve=>setTimeout(resolve,ms))};
 }
 test('Home Chooser setup is opt-in and opens the owner confirmation',()=>{
   const calls=[];
@@ -56,15 +64,23 @@ test('loads artwork near the current page and releases distant pages after rapid
     assert.equal(a.d.querySelectorAll('#menu .art').length,15);
     a.key(34);a.key(34);a.key(34);
     await a.wait(430);
-    assert.equal(a.d.querySelectorAll('#menu .art').length,15);
-    assert.equal(a.d.getElementById('slot-0').childElementCount,0);
-    assert.equal(a.d.getElementById('slot-34').childElementCount,0);
-    assert.ok(a.d.getElementById('slot-35').firstChild);
-    assert.ok(a.d.getElementById('slot-36').firstChild);
+    assert.ok(a.d.querySelectorAll('#menu .art').length <= 27);
+    assert.equal(a.d.querySelector('#slot-0 .art'),null);
+    assert.equal(a.d.querySelector('#slot-12 .art'),null);
+    assert.ok(a.d.querySelector('#slot-34 .art'));
+    assert.ok(a.d.querySelector('#slot-35 .art'));
+    assert.ok(a.d.querySelector('#slot-36 .art'));
     assert.equal(a.d.activeElement.id,'slot-36');
-    a.key(33);a.key(33);a.key(33);
-    assert.ok(a.d.getElementById('slot-0').firstChild);
+    a.key(461);
+    assert.ok(a.d.querySelector('#slot-0 .art'));
+    assert.ok(a.d.querySelector('#slot-13 .art'));
     assert.equal(a.d.activeElement.id,'slot-0');
+    a.key(34);a.key(33);
+    const track=a.d.getElementById('channel-track');
+    assert.equal(track.style.transform,'translateX(0px)');
+    assert.ok(Array.from(track.children).every(page=>page.style.visibility===''));
+    await a.wait(430);
+    assert.equal(track.children[3].style.visibility,'hidden');
   } finally {a.close();}
 });
 test('identical catalog refresh keeps decoded images and never generates unused fallback art',()=>{
@@ -117,6 +133,27 @@ test('generated banners are read from storage on the next launch', async()=>{
     assert.equal(a.w.WiiArt.source(channel),before);
   } finally {a.close();}
 });
+test('turning to a warmed page reuses the prepared artwork and peeking column',()=>{
+  const a=app({images:true});
+  try {
+    const nativeNow=a.w.Date.now;
+    const time=nativeNow()+1000;
+    a.w.Date.now=()=>time;
+    for(let i=0;i<6;i++) a.timeouts.filter(timer=>timer.fn.name==='warmNeighbor').at(-1).fn();
+    const tile=a.d.querySelector('#slot-23 .app-image');
+    const peek=a.d.querySelector('#slot-24 .app-image');
+    assert.ok(tile);
+    assert.ok(peek);
+    const mutations=new a.w.MutationObserver(()=>{});
+    const menu=a.d.getElementById('menu');
+    mutations.observe(menu,{subtree:true,childList:true});
+    a.key(34);
+    assert.equal(mutations.takeRecords().length,0);
+    mutations.disconnect();
+    assert.equal(a.d.querySelector('#slot-23 .app-image'),tile);
+    assert.equal(a.d.querySelector('#slot-24 .app-image'),peek);
+  } finally {a.close();}
+});
 test('navigation mutates only the old and new focus classes',()=>{
   const a=app();
   try {
@@ -132,7 +169,7 @@ test('navigation mutates only the old and new focus classes',()=>{
 });
 test('TV navigation keeps one DOM focus while the selected channel moves',()=>{
   const effects=[];
-  const a=app({tv:true,images:true,effect:key=>effects.push(key)});
+  const a=app({tv:true,images:true,manualFrames:true,effect:key=>effects.push(key)});
   try {
     const nativeFocus=a.w.HTMLElement.prototype.focus;
     const focusCalls=[];
@@ -141,16 +178,36 @@ test('TV navigation keeps one DOM focus while the selected channel moves',()=>{
     const menu=a.d.getElementById('menu');
     assert.deepEqual(focusCalls,['menu']);
     assert.equal(a.d.activeElement,menu);
+    assert.equal(a.frames.size,1);
+    a.paint();
     assert.equal(menu.getAttribute('aria-activedescendant'),'slot-18');
     assert.equal(a.d.querySelector('.channel.selected').id,'slot-18');
+    const track=a.d.getElementById('channel-track');
     assert.equal(menu.style.transform,'');
-    for(const page of menu.children) assert.equal(page.style.transform,'translateX(-1096px)');
+    assert.equal(track.style.transform,'translateX(-1096px)');
+    for(const page of track.children) assert.equal(page.style.transform,'');
     assert.deepEqual(effects,['hover','hover','hover','page']);
+    a.key(39);
     a.key(13);
     assert.equal(a.d.getElementById('channel-screen').hidden,false);
+    assert.equal(a.d.querySelector('#channel-banner .art-title').textContent,'App 19');
     a.key(461);
-    assert.equal(a.d.activeElement.id,'slot-18');
+    assert.equal(a.d.activeElement.id,'slot-19');
     assert.equal(menu.hasAttribute('aria-activedescendant'),false);
+  } finally {a.close();}
+});
+test('rapid page reversals share a visual update and play each page sound',()=>{
+  const effects=[];
+  const a=app({tv:true,images:true,manualFrames:true,effect:key=>effects.push(key)});
+  try {
+    const track=a.d.getElementById('channel-track');
+    a.key(34);a.key(34);a.key(33);
+    assert.equal(track.style.transform,'translateX(0px)');
+    assert.equal(a.frames.size,1);
+    assert.deepEqual(effects,['page','page','page']);
+    a.paint();
+    assert.equal(track.style.transform,'translateX(-1096px)');
+    assert.equal(a.d.querySelector('.channel.selected').id,'slot-12');
   } finally {a.close();}
 });
 test('automatic catalog refresh waits for navigation to go quiet when artwork is cached',()=>{

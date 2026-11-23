@@ -14,12 +14,13 @@
 
   var suppressOkUntilRelease = false, suppressPointerClickUntil = 0;
   var HOLD_DELAY = 650;
-  var slots = [], slotArtwork = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
-  var shownPage = -1;
+  var slots = [], surfaces = [], slotArtwork = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
+  var shownPage = -1, slideStart = 0, slideEnd = 0;
+  var focusFrame = null, warmTimer = null, warmPage = 1;
   var lastGridInput = 0, libraryTimer = null, lastRefresh = 0;
   var artworkTimer = null, pendingArtwork = false, pendingIcons = false, fetchingIcons = false;
   var lastClock = '', lastDate = '';
-  var lastWidth = 0, lastHeight = 0, lastPixelRatio = 0;
+  var lastWidth = 0, lastHeight = 0;
   var footerControls = ['settings', 'audio-settings', 'apps'];
   function $(id) { return document.getElementById(id); }
   function escapeHtml(value) { return String(value).replace(/[&<>"']/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]; }); }
@@ -30,14 +31,13 @@
   }
   function toast(message) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').hidden = false; toastTimer = setTimeout(function () { $('toast').hidden = true; }, 5000); }
   function resize() {
-    var width = window.innerWidth, height = window.innerHeight, pixelRatio = window.devicePixelRatio || 1;
-    if (width === lastWidth && height === lastHeight && pixelRatio === lastPixelRatio) return;
-    lastWidth = width; lastHeight = height; lastPixelRatio = pixelRatio;
+    var width = window.innerWidth, height = window.innerHeight;
+    if (width === lastWidth && height === lastHeight) return;
+    lastWidth = width; lastHeight = height;
     var scale = Math.min(width / 1280, height / 720), stage = $('stage');
     stage.style.transform = 'scale(' + scale + ')';
     stage.style.left = ((width - 1280 * scale) / 2) + 'px';
     stage.style.top = ((height - 720 * scale) / 2) + 'px';
-    stage.classList.toggle('native-art-scale', scale * pixelRatio === 1);
   }
 
   function resolveAppImage(channelId) {
@@ -96,7 +96,7 @@
     };
     return map[channel.id] || {symbol:(channel.name || '?').slice(0,2).toUpperCase(), className:'glyph-generic'};
   }
-  function artwork(channel, key, fallback, choice, attempts) {
+  function artwork(channel, fallback, choice, attempts) {
     var image = resolveAppImage(channel.id);
     var generated;
     if (typeof choice !== 'number') choice = selectedImage(channel.id);
@@ -107,23 +107,22 @@
         '<img class="app-image" data-choice="' + choice + '" data-attempts="' + attempts + '" src="' + escapeHtml(picture.src) + '" alt="" draggable="false">' +
         '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
-    var theme = channel.theme, content = '', id = 'disc-shine-' + key;
-    if (channel.id && /^com\.webos\.app\.hdmi/.test(channel.id)) {
-      return '<span class="art art-disc art-hdmi"><svg viewBox="0 0 250 140" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#f6f6f6"/><stop offset=".28" stop-color="#b4b6b7"/><stop offset=".49" stop-color="#eee"/><stop offset=".7" stop-color="#afb1b1"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><circle cx="125" cy="65" r="49" fill="url(#' + id + ')" stroke="#c2c4c5" stroke-width="2"/><circle cx="125" cy="65" r="46" fill="none" stroke="#fdfdfd" stroke-width="2"/><circle cx="125" cy="65" r="14" fill="#ededed" stroke="#fafafa" stroke-width="3"/><circle cx="125" cy="65" r="8" fill="#fff" stroke="#ccc" stroke-width="2"/></svg><span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
+    var theme = channel.theme, content = '', hdmi = /^com\.webos\.app\.hdmi/.test(channel.id);
+    var disc = '<img class="disc-icon" src="assets/disc.svg" alt="" draggable="false">';
+    if (hdmi) {
+      return '<span class="art art-disc art-hdmi">' + disc + '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
     generated = window.WiiArt && window.WiiArt.source(channel);
     if (generated && channel.id) {
       return '<span class="art art-generated" style="background-image:url(' + generated + ')">' +
         '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
     }
-    if (!fallback && channel.id && !image && !/^com\.webos\.app\.hdmi/.test(channel.id)) {
+    if (!fallback && channel.id && !image) {
       var label = escapeHtml(channel.name), glyph = appGlyph(channel);
       var hues = {'com.crunchyroll.webapp':'#f47521','com.wbd.stream':'#181449','org.webosbrew.hbchannel':'#a71258','com.webos.app.discovery':'#d7156d','globoplaywebos':'#ec153a','lgchannels.br':'#c10b2c','com.webos.app.browser':'#40bdf2','com.webos.app.photovideo':'#7c20d5','com.webos.app.music':'#6751d8','vero':'#154792','netflix':'#181818'};
       return '<span class="art art-app art-app-fallback" style="background-color:' + (hues[channel.id] || '#3a8db0') + '"><span class="app-card app-card-fallback"><span class="app-glyph ' + glyph.className + '">' + escapeHtml(glyph.symbol) + '</span></span><span class="art-title">' + label + '</span></span>';
     }
-    if (theme === 'disc') {
-      content = '<defs><linearGradient id="' + id + '" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#f6f6f6"/><stop offset=".28" stop-color="#b4b6b7"/><stop offset=".49" stop-color="#eee"/><stop offset=".7" stop-color="#afb1b1"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><circle cx="125" cy="65" r="49" fill="url(#' + id + ')" stroke="#c2c4c5" stroke-width="2"/><circle cx="125" cy="65" r="46" fill="none" stroke="#fdfdfd" stroke-width="2"/><circle cx="125" cy="65" r="14" fill="#ededed" stroke="#fafafa" stroke-width="3"/><circle cx="125" cy="65" r="8" fill="#fff" stroke="#ccc" stroke-width="2"/>';
-    } else if (theme === 'photos') {
+    if (theme === 'photos') {
       content = '<path d="M0 35h250v105H0z" fill="#b89573"/><g transform="translate(8 67) rotate(-9 45 30)"><path fill="#fff" d="M0 0h90v65H0z"/><path fill="#78c7eb" d="M5 5h80v52H5z"/><path fill="#f8fcff" d="M5 47l24-23 21 19 18-27 17 27v14H5z"/></g><g transform="translate(156 61) rotate(6 45 30)"><path fill="#fff" d="M0 0h90v65H0z"/><path fill="#4f7c1b" d="M5 5h80v52H5z"/><circle cx="45" cy="29" r="23" fill="#ffce19"/><circle cx="45" cy="29" r="10" fill="#f0a30f"/></g><g transform="translate(77 42) rotate(8 45 30)"><path fill="#fff" d="M0 0h91v72H0z"/><path fill="#7b9d39" d="M5 5h81v60H5z"/><g fill="#ee5836"><circle cx="45" cy="20" r="12"/><circle cx="60" cy="32" r="12"/><circle cx="51" cy="46" r="12"/><circle cx="34" cy="44" r="12"/><circle cx="30" cy="28" r="12"/></g><circle cx="44" cy="33" r="9" fill="#f5b235"/></g>';
     } else if (theme === 'shop') {
       content = '<g fill="#e1f9e9" transform="translate(172 9) rotate(4)"><rect width="60" height="35" rx="2"/><rect y="40" width="60" height="35" rx="2"/></g><g stroke="#00b9ec" stroke-width="4"><path d="M113 27V13q0-20 14 0v14M139 29V15q0-20 14 0v14" fill="none"/><path d="M97 24l66 7v64l-66-16z" fill="#fff"/><path d="M89 31l66 7v64l-66-16z" fill="#fff"/><path d="M80 39l66 7v64L80 95z" fill="#00b9ec"/></g><text x="111" y="79" fill="white" text-anchor="middle" font-family="Arial" font-size="18">Wii</text>';
@@ -132,7 +131,9 @@
     } else if (theme === 'music') {
       content = '<g fill="none" stroke="#c8f5ff" opacity=".8"><circle cx="125" cy="70" r="66" stroke-width="3"/><circle cx="125" cy="70" r="48" stroke-width="2"/><path d="M125 4v132M59 70h132M78 23l94 94M78 117l94-94" stroke-width="2"/><circle cx="125" cy="70" r="23"/></g>';
     }
-    return '<span class="art art-' + theme + '">' + (content ? '<svg viewBox="0 0 250 140" aria-hidden="true">' + content + '</svg>' : '') + '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
+    if (content) content = '<svg viewBox="0 0 250 140" aria-hidden="true">' + content + '</svg>';
+    if (theme === 'disc') content = disc;
+    return '<span class="art art-' + theme + '">' + content + '<span class="art-title">' + escapeHtml(channel.name) + '</span></span>';
   }
   function render() {
     if (slots.length) {
@@ -151,15 +152,15 @@
       markup += '<div class="channel-page off-page" aria-hidden="true" data-page="' + p + '" style="left:' + (p * 1096) + 'px">';
       for (i = 0; i < 12; i++) {
         idx = p * 12 + i; channel = channels[idx];
-        markup += '<button id="slot-' + idx + '" class="channel' + (!channel.id ? ' empty' : '') + '" data-slot="' + idx + '" aria-label="' + escapeHtml(channel.name) + '" style="left:' + ((i % 4) * 268) + 'px;top:' + (Math.floor(i / 4) * 159) + 'px" tabindex="-1">' + '</button>';
+        markup += '<button id="slot-' + idx + '" class="channel' + (!channel.id ? ' empty' : '') + '" data-slot="' + idx + '" aria-label="' + escapeHtml(channel.name) + '" style="left:' + ((i % 4) * 268) + 'px;top:' + (Math.floor(i / 4) * 159) + 'px" tabindex="-1">' + '<span class="channel-surface"></span></button>';
       }
       markup += '</div>';
     }
-    $('menu').innerHTML = markup;
-    slots = []; slotArtwork = []; highlighted = -1; movingSlot = -1; shownPage = -1;
+    $('channel-track').innerHTML = markup;
+    slots = []; surfaces = []; slotArtwork = []; highlighted = -1; movingSlot = -1; shownPage = -1;
     Array.prototype.forEach.call($('menu').querySelectorAll('[data-slot]'), function (button) {
       var index = Number(button.getAttribute('data-slot'));
-      slots[index] = button;
+      slots[index] = button; surfaces[index] = button.firstChild;
       button.onclick = function () {
         if (holdTriggered || Date.now() < suppressPointerClickUntil) { holdTriggered = false; return; }
         if (mode !== 'menu') return;
@@ -173,8 +174,8 @@
       };
       button.onmouseenter = function () {
         if (mode !== 'menu' || Math.floor(index / 12) !== page) return;
-        if (selected !== index || !focusVisible) { lastGridInput = Date.now(); Sound.effect('hover'); }
-        selected = index; focusVisible = true; highlight();
+        if (selected !== index || !focusVisible) { noteGridInput(); Sound.effect('hover'); }
+        selected = index; focusVisible = true; queueHighlight();
         clearTimeout(tooltipTimer); tooltipTimer = setTimeout(function () {
           if (mode !== 'menu') return; $('channel-tooltip').textContent = channels[index].name; $('channel-tooltip').hidden = false;
         }, 650);
@@ -199,11 +200,11 @@
     if (image.tagName !== 'IMG' || !image.classList.contains('app-image')) return;
     var parent = image.parentNode && image.parentNode.parentNode;
     if (!parent || !document.documentElement.contains(parent)) return;
-    var index = parent.id === 'channel-banner' ? selected : Number(parent.getAttribute('data-slot'));
+    var index = parent.id === 'channel-banner' ? selected : Number(parent.parentNode.getAttribute('data-slot'));
     var art = resolveAppImage(channels[index].id);
     var attempted = Number(image.getAttribute('data-attempts')) + 1;
     var next = art && art.choices.length ? (Number(image.getAttribute('data-choice')) + 1) % art.choices.length : -1;
-    parent.innerHTML = artwork(channels[index], 'fallback-' + index,
+    parent.innerHTML = artwork(channels[index],
       !art || attempted >= art.choices.length, next, attempted);
   }
   function hideTooltip() {
@@ -212,6 +213,8 @@
     if (!tooltip.hidden) tooltip.hidden = true;
   }
   function highlight() {
+    if (focusFrame !== null) { window.cancelAnimationFrame(focusFrame); focusFrame = null; }
+    if (shownPage !== page) updatePage();
     var next = focusVisible ? selected : -1;
     if (highlighted !== next) {
       if (slots[highlighted]) slots[highlighted].classList.remove('selected');
@@ -224,6 +227,11 @@
       if (slots[carrying]) slots[carrying].classList.add('moving');
       movingSlot = carrying;
     }
+  }
+  function queueHighlight() {
+    if (!TV.isTV || reduced || document.hidden || !window.requestAnimationFrame) { highlight(); return; }
+    if (focusFrame !== null || (shownPage === page && highlighted === (focusVisible ? selected : -1) && movingSlot === carrying)) return;
+    focusFrame = window.requestAnimationFrame(function () { focusFrame = null; highlight(); });
   }
   function syncChannelFocus() {
     var menu = $('menu');
@@ -239,19 +247,19 @@
     var channel = channels[index], image = resolveAppImage(channel.id);
     var preference = imagePreferences[channel.id], previous = slotArtwork[index];
     if (previous && previous.channel === channel && previous.image === image && previous.preference === preference) return null;
-    var markup = channel.id ? artwork(channel, index) : '';
+    var markup = channel.id ? artwork(channel) : '';
     slotArtwork[index] = {channel: channel, image: image, preference: preference, markup: markup};
     return previous && previous.markup === markup ? null : markup;
   }
   function paintSlot(index) {
     var markup = slotMarkup(index);
-    if (markup !== null) slots[index].innerHTML = markup;
+    if (markup !== null) surfaces[index].innerHTML = markup;
   }
   function mountPageArtwork() {
     var pending = [], markup = '';
-    for (var p = Math.max(0, page - 1); p <= Math.min(3, page + 1); p++) {
+    for (var p = Math.max(0, slideStart - 1); p <= Math.min(3, slideEnd + 1); p++) {
       for (var index = p * 12; index < p * 12 + 12; index++) {
-        if (slotArtwork[index] || !artworkInViewport(p, index)) continue;
+        if (slotArtwork[index] || !artworkInRange(p, index, slideStart, slideEnd)) continue;
         var art = slotMarkup(index);
         if (!art) continue;
         pending.push(index);
@@ -262,27 +270,55 @@
     var batch = document.createElement('div');
     batch.innerHTML = markup;
     for (var i = 0; i < pending.length; i++) {
-      slots[pending[i]].appendChild(batch.children[i].firstChild);
+      surfaces[pending[i]].appendChild(batch.children[i].firstChild);
+    }
+  }
+  function artworkInRange(index, slot, start, end) {
+    return (index >= start && index <= end) || (index === start - 1 && slot % 4 === 3) ||
+      (index === end + 1 && slot % 4 === 0);
+  }
+  function queuePageWarmup() {
+    if (warmTimer !== null || document.hidden || mode !== 'menu' || pageTimer !== null || warmPage === page) return;
+    warmTimer = setTimeout(warmNeighbor, Math.max(50, 400 - (Date.now() - lastGridInput)));
+  }
+  function warmNeighbor() {
+    warmTimer = null;
+    if (document.hidden || mode !== 'menu' || pageTimer !== null || shownPage !== page) return;
+    if (Date.now() - lastGridInput < 400) { queuePageWarmup(); return; }
+    var added = 0, outerPage = warmPage + (warmPage - page), targets = [warmPage, outerPage];
+    for (var p = 0; p < targets.length; p++) {
+      var target = targets[p];
+      if (target < 0 || target > 3) continue;
+      for (var index = target * 12; index < target * 12 + 12; index++) {
+        if (slotArtwork[index] || !artworkInRange(target, index, warmPage, warmPage)) continue;
+        if (added === 2) { queuePageWarmup(); return; }
+        paintSlot(index);
+        var image = surfaces[index].firstChild && surfaces[index].firstChild.firstChild;
+        if (image && typeof image.decode === 'function') image.decode().catch(function () {});
+        added++;
+      }
     }
   }
   function trimPages() {
     pageTimer = null;
-    var pages = $('menu').children;
+    slideStart = slideEnd = page;
+    var pages = $('channel-track').children;
     for (var p = 0; p < 4; p++) {
       if (Math.abs(p - page) > 1) pages[p].style.visibility = 'hidden';
       for (var i = p * 12; i < p * 12 + 12; i++) {
-        if (!slotArtwork[i] || artworkInViewport(p, i)) continue;
-        if (slots[i].firstChild) slots[i].innerHTML = '';
+        if (!slotArtwork[i] || artworkInRange(p, i, page, page) || artworkInRange(p, i, warmPage, warmPage)) continue;
+        if (surfaces[i].firstChild) surfaces[i].textContent = '';
         slotArtwork[i] = null;
       }
     }
+    queuePageWarmup();
   }
-  function artworkInViewport(index, slot) {
-    return index === page || (index === page - 1 && slot % 4 === 3) ||
-      (index === page + 1 && slot % 4 === 0);
+  function noteGridInput() {
+    lastGridInput = Date.now();
+    if (window.WiiArt && window.WiiArt.deferSave) window.WiiArt.deferSave(lastGridInput + 400);
   }
   function setPageFocus(index, visible) {
-    var element = $('menu').children[index];
+    var element = $('channel-track').children[index];
     element.setAttribute('aria-hidden', String(!visible));
     element.classList.toggle('off-page', !visible);
     for (var i = index * 12; i < index * 12 + 12; i++) slots[i].tabIndex = visible ? 0 : -1;
@@ -290,22 +326,28 @@
   function updatePage() {
     hideTooltip();
     clearTimeout(pageTimer);
-    var menu = $('menu'), pages = menu.children;
+    clearTimeout(warmTimer);
+    warmTimer = null;
+    var track = $('channel-track'), pages = track.children;
+    var previous = shownPage;
     if (shownPage !== page) {
       if (shownPage >= 0) setPageFocus(shownPage, false);
       setPageFocus(page, true);
       shownPage = page;
     }
-    for (var p = Math.max(0, page - 1); p <= Math.min(3, page + 1); p++) {
-      if (pages[p].style.visibility === 'hidden') pages[p].style.visibility = '';
+    if (previous >= 0) warmPage = page > previous ? page - 1 : page + 1;
+    if (reduced || document.hidden || previous < 0) slideStart = slideEnd = page;
+    else { slideStart = Math.min(slideStart, page); slideEnd = Math.max(slideEnd, page); }
+    for (var p = 0; p < pages.length; p++) {
+      var visibility = p < slideStart - 1 || p > slideEnd + 1 ? 'hidden' : '';
+      if (pages[p].style.visibility !== visibility) pages[p].style.visibility = visibility;
     }
     mountPageArtwork();
     var offset = 'translateX(' + (-page * 1096) + 'px)';
-    for (var index = 0; index < pages.length; index++) pages[index].style.transform = offset;
+    if (track.style.transform !== offset) track.style.transform = offset;
     $('prev').disabled = page === 0; $('next').disabled = page === 3;
     $('page-label').textContent = 'Page ' + (page + 1) + ' of 4';
-    if (reduced || document.hidden) trimPages(); else pageTimer = setTimeout(trimPages, 400);
-    highlight();
+    if (reduced || document.hidden || previous < 0) trimPages(); else pageTimer = setTimeout(trimPages, 400);
     queueArtwork(false, true);
   }
   function coverMenu(covered) { $('stage').classList.toggle('menu-covered', covered); }
@@ -317,20 +359,21 @@
         menu.setAttribute('aria-activedescendant', slots[selected].id);
         menu.focus({preventScroll: true});
       }
-      highlight();
+      queueHighlight();
       return;
     }
+    if (shownPage !== page) updatePage();
     var slot = slots[selected];
     if (document.activeElement !== slot) slot.focus({preventScroll: true});
     highlight();
   }
   function switchPage(target) {
     if (mode !== 'menu' || target < 0 || target > 3 || target === page) return;
-    lastGridInput = Date.now();
-    selected = target * 12 + selected % 12; page = target; updatePage(); focusChannel(true); Sound.effect('page');
+    noteGridInput();
+    selected = target * 12 + selected % 12; page = target; focusChannel(true); Sound.effect('page');
   }
   function move(dx, dy) {
-    lastGridInput = Date.now();
+    noteGridInput();
     var col = selected % 4, row = Math.floor((selected % 12) / 4);
     if (dy === 1 && row === 2 && carrying < 0) { focusVisible = false; highlight(); (col < 2 ? $('settings') : $('apps')).focus(); return; }
     if (col + dx < 0 && page > 0) { selected += 3; switchPage(page - 1); return; }
@@ -403,7 +446,7 @@
     dialogConfirm = null; dialogBack = null; dialogControls = []; coverMenu(mode !== 'menu');
     if (returnFocus && document.documentElement.contains(returnFocus)) returnFocus.focus();
     else if (mode === 'menu') focusChannel(); else $('channel-start').focus();
-    if (mode === 'menu') queueArtwork(false, true);
+    if (mode === 'menu') { queueArtwork(false, true); queuePageWarmup(); }
   }
   function dialog(title, info, markup, confirmLabel, confirm, back) {
     if (dialogCleanup) { dialogCleanup(); dialogCleanup = null; }
@@ -427,15 +470,17 @@
     returnTimer = setTimeout(function () { $('home').classList.remove('returning'); }, 240);
     Sound.resume(); Sound.effect('back'); focusChannel();
     queueArtwork(false, true);
+    queuePageWarmup();
   }
   function openChannel() {
     hideTooltip();
+    if (shownPage !== page) highlight();
     if (carrying >= 0) {
       var source = channels[carrying]; channels[carrying] = channels[selected]; channels[selected] = source;
       carrying = -1; save(); render(); focusChannel(); Sound.effect('select'); return;
     }
     if (!channels[selected].id) { library(); return; }
-    Sound.effect('select'); $('channel-banner').innerHTML = artwork(channels[selected], 'banner');
+    Sound.effect('select'); $('channel-banner').innerHTML = artwork(channels[selected]);
     $('channel-screen').style.transformOrigin = (108 + (selected % 4) * 268 + 126) + 'px ' + (50 + Math.floor((selected % 12) / 4) * 159 + 72) + 'px';
     coverMenu(true); $('channel-screen').hidden = false; $('home').setAttribute('aria-hidden', 'true'); mode = 'channel';
     if (statsCleanup) statsCleanup.setCovered(true);
@@ -567,7 +612,7 @@
       if (current) paintSlot(index);
     });
     if (!$('channel-screen').hidden) {
-      $('channel-banner').innerHTML = artwork(channels[selected], 'banner');
+      $('channel-banner').innerHTML = artwork(channels[selected]);
     }
   }
   function queueArtwork(repaint, fetchIcons) {
@@ -795,8 +840,8 @@
   window.addEventListener('resize', resize);
   document.addEventListener('visibilitychange', function () {
     $('stage').classList.toggle('backgrounded', document.hidden); clearInterval(clockTimer);
-    if (document.hidden) { cancelHold(); hideTooltip(); clearTimeout(pageTimer); trimPages(); }
-    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); queueArtwork(false, true); }
+    if (document.hidden) { cancelHold(); hideTooltip(); clearTimeout(pageTimer); clearTimeout(warmTimer); warmTimer = null; trimPages(); highlight(); }
+    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); queueArtwork(false, true); queuePageWarmup(); }
   });
   document.addEventListener('webOSRelaunch', function () { if (mode === 'channel') backHome(); });
   try { reduced = storage.getItem('wiios.motion') === 'reduced'; } catch (ignore) {}

@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var memo = Object.create(null), keys = [], saveTimer = null;
+  var memo = Object.create(null), keys = [], saveTimer = null, deferredUntil = 0;
   var cacheKey = 'wiios.generated.artwork.v1', cacheLimit = 160 * 1024, maxEntries = 128;
   try {
     var raw = root.localStorage.getItem(cacheKey);
@@ -12,18 +12,20 @@
       keys.push(entry[0]); memo[entry[0]] = entry[1];
     });
   } catch (ignore) {}
+  function flush() {
+    var delay = deferredUntil - Date.now();
+    if (delay > 0) { saveTimer = root.setTimeout(flush, delay); return; }
+    saveTimer = null;
+    try {
+      var cache = JSON.stringify(keys.map(function (key) {return [key, memo[key]];}));
+      if (cache.length <= cacheLimit) root.localStorage.setItem(cacheKey, cache);
+    } catch (ignore) {}
+  }
   function remember(key, image) {
     memo[key] = image;
     keys.push(key);
     if (keys.length > maxEntries) delete memo[keys.shift()];
-    if (saveTimer !== null) return;
-    saveTimer = root.setTimeout(function () {
-      saveTimer = null;
-      try {
-        var cache = JSON.stringify(keys.map(function (key) {return [key, memo[key]];}));
-        if (cache.length <= cacheLimit) root.localStorage.setItem(cacheKey, cache);
-      } catch (ignore) {}
-    }, 0);
+    if (saveTimer === null) saveTimer = root.setTimeout(flush, Math.max(0, deferredUntil - Date.now()));
   }
   function escape(value) {
     return String(value).replace(/[&<>"']/g, function (c) {
@@ -65,5 +67,5 @@
     remember(key, image);
     return image;
   }
-  root.WiiArt = {source: source};
+  root.WiiArt = {source: source, deferSave: function (until) {deferredUntil = until;}};
 }(window));

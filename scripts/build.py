@@ -11,6 +11,7 @@ import re
 import shutil
 import platform
 import subprocess
+import sys
 import tarfile
 import zipfile
 
@@ -188,11 +189,11 @@ def build_installer(root, output, package):
     else:
         files = []
     if commit is None:
-        excluded = {'.git', '.tools', 'node_modules', 'dist', '.venv', '__pycache__'}
+        excluded = {'.git', '.tools', 'node_modules', 'dist', 'release', '.venv', '__pycache__'}
         files = [path.relative_to(root).as_posix() for path in root.rglob('*')
                  if path.is_file() and not set(path.relative_to(root).parts).intersection(excluded)]
     hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in sorted(set(files))
-              if name and (root / name).is_file() and not (root / name).is_symlink()}
+              if name and not name.startswith('release/') and (root / name).is_file() and not (root / name).is_symlink()}
     manifest = {'schemaVersion': 1, 'wiiOsCommit': commit,
                 'workingTreeDirty': dirty,
                 'version': json.loads((root / 'appinfo.json').read_text())['version'],
@@ -203,11 +204,14 @@ def build_installer(root, output, package):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, help='Output directory (default: dist)')
+    parser.add_argument('--output', type=Path, help='Build only the selected IPK in this directory. A build with no options refreshes release/.')
     variants = parser.add_mutually_exclusive_group()
     variants.add_argument('--home-chooser', action='store_true',
                         help='Build a Home Chooser candidate in the home-chooser subdirectory')
     variants.add_argument('--home-chooser-api', action='store_true',
                           help='Build a Home Chooser API package for TVs with the service already set up')
     args = parser.parse_args()
-    build(output=args.output, home_chooser=args.home_chooser, home_chooser_api=args.home_chooser_api)
+    if args.output is None and not (args.home_chooser or args.home_chooser_api):
+        subprocess.run([sys.executable, '-m', 'scripts.prepare_release', '--build'], cwd=ROOT, check=True)
+    else:
+        build(output=args.output, home_chooser=args.home_chooser, home_chooser_api=args.home_chooser_api)

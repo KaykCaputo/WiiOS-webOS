@@ -36,7 +36,7 @@ jobs:
 
       - name: Build release assets
         run: |
-          python3 scripts/build.py
+          python3 scripts/build.py --output dist
           python3 scripts/build.py --home-chooser
           python3 -m scripts.prepare_release --repository "$GITHUB_REPOSITORY" --revision "$GITHUB_SHA"
 

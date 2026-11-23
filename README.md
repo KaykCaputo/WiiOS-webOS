@@ -61,6 +61,8 @@ npm test
 python3 scripts/build.py
 ```
 
+The build refreshes the IPKs, installer, and checksums in `release/`. Use the package for your installation method from that directory.
+
 GitHub Actions publishes the standard IPK, the WiiOS Installer, the Home Chooser IPK and ZIP, and the Homebrew Channel manifest. The catalog listing is reviewed separately by the Homebrew Channel maintainers.
 
 ## License

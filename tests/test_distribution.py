@@ -10,9 +10,28 @@ import tempfile
 import unittest
 
 from scripts.build import build, build_installer
+from scripts.prepare_release import build_release
 
 
 class DistributionTests(unittest.TestCase):
+    def test_local_release_replaces_same_version_packages_and_keeps_previous_versions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            root = Path(__file__).resolve().parents[1]
+            version = json.loads((root / 'appinfo.json').read_text())['version']
+            current = output / f'com.wiios.launcher_{version}_all.ipk'
+            previous = output / 'com.wiios.launcher_0.0.1_all.ipk'
+            current.write_bytes(b'stale')
+            previous.write_bytes(b'previous')
+            with redirect_stdout(io.StringIO()):
+                build_release(output, 'KaykCaputo/WiiOS-webOS', 'test-revision')
+            manifest = json.loads((output / 'build-manifest.json').read_text())
+            self.assertEqual(previous.read_bytes(), b'previous')
+            self.assertTrue(current.read_bytes().startswith(b'!<arch>\n'))
+            self.assertIn('home-chooser-api/' + current.name, manifest['artifacts'])
+            for path, digest in manifest['artifacts'].items():
+                self.assertEqual(hashlib.sha256((output / path).read_bytes()).hexdigest(), digest)
+
     def test_source_archive_without_git_builds_installer_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'WiiOS-webOS'
