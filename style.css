@@ -12,6 +12,7 @@ button:focus { outline: none; }
 .channel { position: absolute; width: 252px; height: 145px; padding: 0; border: 3px solid #b4b6b6; border-radius: 19px / 16px; background: #fafafa; box-shadow: 0 1px 2px rgba(0,0,0,.17), inset 0 0 0 2px white; transition: transform 180ms cubic-bezier(.2,.7,.3,1); }
 .channel:after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 16px / 13px; box-shadow: inset 0 1px 4px rgba(0,0,0,.15); pointer-events: none; }
 .channel:before { content:''; position:absolute; top:-3px; right:-3px; bottom:-3px; left:-3px; border:3px solid #45bbdf; border-radius:19px / 16px; box-shadow:0 0 0 2px #c2f4ff,0 0 12px rgba(60,185,224,.55); opacity:0; transition:opacity 180ms ease-out; pointer-events:none; z-index:2; }
+.native-art-scale .channel:before { top:-27px; right:-27px; bottom:-27px; left:-27px; border:0; border-radius:0; box-shadow:none; background:url('assets/channel-focus.png') no-repeat; }
 .channel.selected, .channel:focus { z-index: 3; transform: scale(1.025); }
 .channel.selected:before, .channel:focus:before { opacity:1; }
 .channel.empty { background: #d5d6d6 url('assets/static.svg'); }
@@ -146,3 +147,4 @@ footer { position: absolute; left: 0; bottom: 0; width: 1280px; height: 190px; }
 .stat-memory { left: 303px; top: 23px; }
 .stat-temperature { left: 839px; top: 0; }
 .stat-fps { left: 839px; top: 23px; }
+.stats-status { position: absolute; left: 303px; top: 44px; margin: 0; font-size: 11px; white-space: nowrap; }

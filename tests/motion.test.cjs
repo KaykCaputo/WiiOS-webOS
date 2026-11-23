@@ -256,3 +256,25 @@ test('stats cancel polling and animation callbacks while hidden or covered, then
     stop();assert.equal(timers.size,0);assert.equal(frames.size,0);
   } finally {w.close();}
 });
+test('stats show the missing helper and back off while local FPS keeps running',()=>{
+  const dom=new JSDOM('<div id="stats"></div>',{runScripts:'outside-only',pretendToBeVisual:true});
+  try {
+    const w=dom.window, container=w.document.getElementById('stats');
+    let now=10000, polls=0, tick, poll;
+    w.Date.now=()=>now;
+    w.requestAnimationFrame=fn=>{tick=fn;return 1;};
+    w.setInterval=fn=>{poll=fn;return 1;};
+    w.XMLHttpRequest=function(){this.open=()=>{};this.send=()=>{polls++;this.onerror();};};
+    w.eval(read('stats.js'));
+    const stop=w.WiiStats.mount(container,{isTV:true});
+    assert.equal(container.querySelector('.stats-status').textContent,'Metrics helper unavailable');
+    assert.equal(container.querySelector('.stats-status').hidden,false);
+    now+=1000;poll();
+    assert.equal(polls,1);
+    now+=1000;poll();
+    assert.equal(polls,2);
+    tick(0);tick(2000);
+    assert.equal(container.querySelector('.stat-fps dd').textContent,'0.5');
+    stop();
+  } finally {dom.window.close();}
+});

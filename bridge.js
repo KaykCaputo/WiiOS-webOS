@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   var pending = [];
-  function request(method, parameters, done) {
+  function serviceRequest(service, method, parameters, done, timeout) {
     var bridge, timer, settled = false;
     function finish(error, result) {
       if (settled) return;
@@ -28,10 +28,13 @@
         if (!result || result.returnValue !== true) { finish(result || {errorText: 'Empty TV response.'}); return; }
         finish(null, result);
       };
-      timer = setTimeout(function () { finish({errorCode: 'TIMEOUT', errorText: 'TV did not respond within 5 seconds.'}); }, 5000);
-      bridge.call('luna://com.webos.applicationManager/' + method, JSON.stringify(parameters || {}));
+      timer = setTimeout(function () { finish({errorCode: 'TIMEOUT', errorText: 'TV service did not respond in time.'}); }, timeout);
+      bridge.call('luna://' + service + '/' + method, JSON.stringify(parameters || {}));
     } catch (error) { finish({errorCode: 'BRIDGE', errorText: String(error.message || error)}); }
     return {cancel: function () { finish({errorCode: 'CANCELLED', errorText: 'Request canceled.'}); }};
+  }
+  function request(method, parameters, done) {
+    return serviceRequest('com.webos.applicationManager', method, parameters, done, 5000);
   }
   function uninstall(id, done) {
     if (!/^[A-Za-z0-9_.-]+$/.test(id)) { done({errorText: 'Invalid app ID.'}); return; }
@@ -79,6 +82,9 @@
   }
   root.WiiTV = {
     isTV: typeof root.PalmServiceBridge === 'function', request: request,
+    chooserRequest: function (method, parameters, done) {
+      return serviceRequest('org.webosbrew.homechooser.service', method, parameters, done, 3500);
+    },
     list: function (done) { return fallback('listLaunchPoints', null, done); },
     check: function (id, done) { return fallback('getAppLoadStatus', id, done); },
     launch: function (id, done) { return fallback('launch', id, done); },

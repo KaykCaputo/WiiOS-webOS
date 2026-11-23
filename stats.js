@@ -3,16 +3,18 @@
   function mount(container, options) {
     var stopped = false, frame = null, poll = null, xhr = null, started = null, frames = 0;
     var covered = !!options.covered;
+    var failures = 0, retryAt = 0;
     var labels = [['cpu', 'CPU'], ['memory', 'RAM'], ['temperature', 'TEMP'], ['fps', 'FPS']];
-    var values = {}, table = document.createElement('dl'), note = document.createElement('p');
+    var values = {}, table = document.createElement('dl'), note = document.createElement('p'), status = document.createElement('p');
     table.className = 'stats-table'; note.className = 'sr-only';
+    status.className = 'stats-status'; status.hidden = true; status.setAttribute('role', 'status');
     labels.forEach(function (item) {
       var title = document.createElement('dt'), value = document.createElement('dd');
       title.textContent = item[1]; value.textContent = '—'; values[item[0]] = value;
       var row = document.createElement('div'); row.className = 'stat-item stat-' + item[0];
       row.appendChild(title); row.appendChild(value); table.appendChild(row);
     });
-    container.appendChild(table); container.appendChild(note);
+    container.appendChild(table); container.appendChild(note); container.appendChild(status);
     function display(node, text) {
       if (node.textContent !== text) node.textContent = text;
     }
@@ -20,10 +22,18 @@
       display(values.cpu, '—'); display(values.memory, '—'); display(values.temperature, '—');
       display(note, options.isTV ? 'Device metrics unavailable. Interface FPS is measured locally.' : 'Browser preview: only interface FPS is measured. Device metrics require the collector on the TV.');
     }
+    function failed() {
+      unavailable();
+      if (status.hidden) {status.textContent = 'Metrics helper unavailable'; status.hidden = false;}
+      failures = Math.min(6, failures + 1);
+      retryAt = Date.now() + Math.min(60000, 1000 * Math.pow(2, failures));
+    }
     function number(value) {return typeof value === 'number' && isFinite(value);}
     function inactive() {return stopped || document.hidden || covered;}
     function show(data) {
-      if (!data || data.schema !== 1 || !number(data.sampledAt) || Math.abs(Date.now() - data.sampledAt) > 10000) {unavailable(); return;}
+      if (!data || data.schema !== 1 || !number(data.sampledAt) || Math.abs(Date.now() - data.sampledAt) > 10000) {failed(); return;}
+      failures = 0; retryAt = 0;
+      if (!status.hidden) status.hidden = true;
       display(values.cpu, number(data.cpuPercent) && data.cpuPercent >= 0 && data.cpuPercent <= 100 ? data.cpuPercent.toFixed(1) + '%' : '—');
       var m = data.memory;
       display(values.memory, m && number(m.usedKiB) && number(m.totalKiB) && m.usedKiB >= 0 && m.totalKiB > 0 && m.usedKiB <= m.totalKiB ? (m.usedKiB / 1024).toFixed(0) + ' / ' + (m.totalKiB / 1024).toFixed(0) + ' MiB' + (m.estimated ? ' (est.)' : '') : '—');
@@ -31,17 +41,21 @@
       display(note, 'Updated every 2 seconds. Used memory excludes available memory. FPS measures WiiOS animation callbacks, not video or game frames.');
     }
     function update() {
-      if (inactive() || !options.isTV || xhr) return;
-      var request = new XMLHttpRequest(); xhr = request;
+      if (inactive() || !options.isTV || xhr || Date.now() < retryAt) return;
+      var request;
+      try {request = new root.XMLHttpRequest();} catch (e) {failed(); return;}
+      xhr = request;
       function done() {if (xhr === request) xhr = null;}
-      request.open('GET', 'http://127.0.0.1:19083/v1/stats', true); request.timeout = 1500;
       request.onload = function () {
         done(); if (inactive()) return;
-        try {if (request.status !== 200) throw Error('status'); show(JSON.parse(request.responseText));} catch (e) {unavailable();}
+        try {if (request.status !== 200) throw Error('status'); show(JSON.parse(request.responseText));} catch (e) {failed();}
       };
-      request.onerror = request.ontimeout = function () {done(); if (!inactive()) unavailable();};
+      request.onerror = request.ontimeout = function () {done(); if (!inactive()) failed();};
       request.onabort = done;
-      try {request.send();} catch (e) {done(); unavailable();}
+      try {
+        request.open('GET', 'http://127.0.0.1:19083/v1/stats', true);
+        request.timeout = 1500; request.send();
+      } catch (e) {done(); failed();}
     }
     function tick(time) {
       if (inactive()) return;

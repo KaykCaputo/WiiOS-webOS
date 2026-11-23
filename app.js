@@ -17,6 +17,7 @@
   var slots = [], slotArtwork = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
   var shownPage = -1;
   var lastGridInput = 0, libraryTimer = null, lastRefresh = 0;
+  var artworkTimer = null, pendingArtwork = false, pendingIcons = false, fetchingIcons = false;
   var lastClock = '', lastDate = '';
   var lastWidth = 0, lastHeight = 0, lastPixelRatio = 0;
   var footerControls = ['settings', 'audio-settings', 'apps'];
@@ -305,6 +306,7 @@
     $('page-label').textContent = 'Page ' + (page + 1) + ' of 4';
     if (reduced || document.hidden) trimPages(); else pageTimer = setTimeout(trimPages, 400);
     highlight();
+    queueArtwork(false, true);
   }
   function coverMenu(covered) { $('stage').classList.toggle('menu-covered', covered); }
   function focusChannel(directional) {
@@ -401,6 +403,7 @@
     dialogConfirm = null; dialogBack = null; dialogControls = []; coverMenu(mode !== 'menu');
     if (returnFocus && document.documentElement.contains(returnFocus)) returnFocus.focus();
     else if (mode === 'menu') focusChannel(); else $('channel-start').focus();
+    if (mode === 'menu') queueArtwork(false, true);
   }
   function dialog(title, info, markup, confirmLabel, confirm, back) {
     if (dialogCleanup) { dialogCleanup(); dialogCleanup = null; }
@@ -423,6 +426,7 @@
     $('home').classList.toggle('returning', !reduced && !document.hidden);
     returnTimer = setTimeout(function () { $('home').classList.remove('returning'); }, 240);
     Sound.resume(); Sound.effect('back'); focusChannel();
+    queueArtwork(false, true);
   }
   function openChannel() {
     hideTooltip();
@@ -447,16 +451,20 @@
       launchBusy = false; $('channel-start').disabled = false; $('channel-start').textContent = 'Start'; Sound.resume();
       dialog('Unable to open', app.name + ': ' + (error.errorText || 'TV rejected the request.') + (error.errorCode !== undefined ? ' (' + error.errorCode + ')' : ''), '<p class="note">App IDs vary by model or region. System apps may reject a direct launch.</p>', 'Edit Channel', function () { edit(); }, closeDialog);
     }
-    TV.check(app.id, function (error, result) {
-      if (token !== launchToken) return;
-      if (error) { failed(error); return; }
-      if (!result.exist) { failed({errorText: 'This app is not installed.'}); return; }
+    function start() {
       Sound.effect('start');
       TV.launch(app.id, function (launchError) {
         if (token !== launchToken) return;
         if (launchError) { failed(launchError); return; }
         launchBusy = false; backHome(); Sound.pause();
       });
+    }
+    if (window.WiiLibrary.listedByChooser(app.id)) {start(); return;}
+    TV.check(app.id, function (error, result) {
+      if (token !== launchToken) return;
+      if (error) { failed(error); return; }
+      if (!result.exist) { failed({errorText: 'This app is not installed.'}); return; }
+      start();
     });
   }
   function edit() {
@@ -562,6 +570,29 @@
       $('channel-banner').innerHTML = artwork(channels[selected], 'banner');
     }
   }
+  function queueArtwork(repaint, fetchIcons) {
+    pendingArtwork = pendingArtwork || repaint;
+    pendingIcons = pendingIcons || !!(fetchIcons && window.WiiChooser && window.WiiChooser.enabled());
+    if (artworkTimer !== null || document.hidden || mode !== 'menu' ||
+        (!pendingArtwork && (!pendingIcons || fetchingIcons))) return;
+    artworkTimer = setTimeout(flushArtwork, Math.max(0, 400 - (Date.now() - lastGridInput)));
+  }
+  function flushArtwork() {
+    artworkTimer = null;
+    if (document.hidden || mode !== 'menu' || Date.now() - lastGridInput < 400) {
+      queueArtwork(false, false); return;
+    }
+    if (pendingArtwork) {pendingArtwork = false; refreshArtwork();}
+    if (!pendingIcons || fetchingIcons) return;
+    pendingIcons = false;
+    if (window.WiiLibrary.diagnostics().source !== 'home-chooser') return;
+    fetchingIcons = true;
+    window.WiiChooser.icons(channels.slice(page * 12, page * 12 + 12).map(function (channel) {
+      return channel.id;
+    }), function (changed) {
+      fetchingIcons = false; queueArtwork(changed, false);
+    });
+  }
   function scan(done) {
     if (scanning) { done('A scan is already running.'); return; }
     scanning = true;
@@ -576,7 +607,7 @@
         }
         scanning = false;
         lastScan = installed.length + ' apps found on this TV.';
-        if (window.WiiLibrary.artworkVersion() !== artVersion) refreshArtwork();
+        queueArtwork(window.WiiLibrary.artworkVersion() !== artVersion, true);
         done(null); return;
       }
       var candidates = Model.catalog.concat(channels), seen = {}, next = 0, active = 0, finished = 0, confirmed = [], failures = 0;
@@ -765,7 +796,7 @@
   document.addEventListener('visibilitychange', function () {
     $('stage').classList.toggle('backgrounded', document.hidden); clearInterval(clockTimer);
     if (document.hidden) { cancelHold(); hideTooltip(); clearTimeout(pageTimer); trimPages(); }
-    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); }
+    if (!document.hidden) { clock(); clockTimer = setInterval(clock, 10000); queueArtwork(false, true); }
   });
   document.addEventListener('webOSRelaunch', function () { if (mode === 'channel') backHome(); });
   try { reduced = storage.getItem('wiios.motion') === 'reduced'; } catch (ignore) {}

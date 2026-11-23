@@ -96,9 +96,12 @@
       return artwork[id] !== images[id];
     });
     var catalogChanged = JSON.stringify(next) !== JSON.stringify(points);
-    if (changed) { images = artwork; artworkVersion++; }
+    if (changed) images = artwork;
+    var source = response.source === 'home-chooser' ? 'home-chooser' : local ? 'local' : response.source === 'ssap' ? 'ssap' : 'luna';
+    if (changed || response.artworkChanged || (source !== lastSource &&
+        (source === 'home-chooser' || lastSource === 'home-chooser'))) artworkVersion++;
     if (catalogChanged) points = next;
-    lastSource = local ? 'local' : response.source === 'ssap' ? 'ssap' : 'luna'; lastError = ''; stale = false;
+    lastSource = source; lastError = ''; stale = false;
     if (changed || catalogChanged || Date.now() - savedAt >= 24 * 60 * 60 * 1000) persist();
     return points;
   }
@@ -107,7 +110,8 @@
     function fallback() {
       if (finished) return;
       finished = true;
-      root.WiiTV.list(function (error, response) {
+      var list = root.WiiTV.request ? function (reply) {root.WiiTV.request('listLaunchPoints', {}, reply);} : root.WiiTV.list;
+      function fallbackLuna() {list(function (error, response) {
         if (error || !response || !Array.isArray(response.launchPoints) || !response.launchPoints.length) {
           lastError = error && error.errorText || 'Application list unavailable';
           if (root.WiiSSAP && root.WiiSSAP.configured()) {
@@ -122,7 +126,13 @@
         }
         if (response.source !== 'ssap') response.source = 'luna';
         done(null, accept(response));
-      });
+      });}
+      if (root.WiiChooser && root.WiiChooser.enabled()) {
+        root.WiiChooser.list(function (error, response) {
+          if (!error) {done(null, accept(response)); return;}
+          fallbackLuna();
+        });
+      } else fallbackLuna();
     }
     try {
       xhr = new root.XMLHttpRequest();
@@ -144,6 +154,13 @@
   }
   root.WiiLibrary = {refresh: refresh, accept: accept,
     artworkVersion: function () {return artworkVersion;},
-    entries: function () {return points;}, image: function (id) {return images[id] || null;},
+    entries: function () {return points;},
+    listedByChooser: function (id) {
+      return lastSource === 'home-chooser' && points.some(function (point) {return point.id === id;});
+    },
+    image: function (id) {
+      return images[id] || ((lastSource === 'home-chooser' || stale || lastSource === 'unknown') &&
+        root.WiiChooser && root.WiiChooser.image(id)) || null;
+    },
     diagnostics: function () {return {source: lastSource, error: lastError, stale: stale, apps: points.length, withImages: Object.keys(images).length};}};
 }(window));

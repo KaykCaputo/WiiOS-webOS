@@ -15,7 +15,7 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png')
+FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'audio.js', 'home-chooser.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png', 'assets/channel-focus.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
 IPK_MTIME = 1577836800
 
@@ -75,11 +75,11 @@ def ar_archive(members):
             result.extend(b'\n')
     return bytes(result)
 
-def build(root=ROOT, output=None, *, home_chooser=False):
+def build(root=ROOT, output=None, *, home_chooser=False, home_chooser_api=False):
     root = Path(root)
     output = Path(output) if output else root / 'dist'
-    if home_chooser:
-        output /= 'home-chooser'
+    if home_chooser or home_chooser_api:
+        output /= 'home-chooser-api' if home_chooser_api else 'home-chooser'
     info = json.loads((root / 'appinfo.json').read_text())
     package_info = json.loads((root / 'package.json').read_text())
     lock = json.loads((root / 'package-lock.json').read_text())
@@ -96,8 +96,11 @@ def build(root=ROOT, output=None, *, home_chooser=False):
             '\nExtract the complete ZIP and keep the WiiOS-webOS directory structure.'
         )
     files = {name: (root / name).read_bytes() for name in FILES}
-    if home_chooser:
+    if home_chooser or home_chooser_api:
         info['appCategory'] = list(dict.fromkeys([*info.get('appCategory', []), 'home']))
+        if home_chooser_api:
+            permission = 'org.webosbrew.homechooser.applications'
+            info['requiredPermissions'] = list(dict.fromkeys([*info.get('requiredPermissions', []), permission]))
         files['appinfo.json'] = (json.dumps(info, indent=2) + '\n').encode()
     for path in sorted((root / 'assets').glob('*.svg')):
         files[path.relative_to(root).as_posix()] = path.read_bytes()
@@ -120,8 +123,10 @@ def build(root=ROOT, output=None, *, home_chooser=False):
     validate_entrypoint_assets(files)
 
     (root / 'audio-assets.js').write_bytes(files['audio-assets.js'])
-    if home_chooser:
+    if home_chooser or home_chooser_api:
         files['audio-assets.js'] += b'window.WIIOS_HOME_CHOOSER = true;\n'
+    if home_chooser_api:
+        files['audio-assets.js'] += b'window.WIIOS_HOME_CHOOSER_API = true;\n'
     stage = output / 'app'
     if stage.exists():
         shutil.rmtree(stage)
@@ -199,7 +204,10 @@ def build_installer(root, output, package):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, help='Output directory (default: dist)')
-    parser.add_argument('--home-chooser', action='store_true',
+    variants = parser.add_mutually_exclusive_group()
+    variants.add_argument('--home-chooser', action='store_true',
                         help='Build a Home Chooser candidate in the home-chooser subdirectory')
+    variants.add_argument('--home-chooser-api', action='store_true',
+                          help='Build a Home Chooser API package for TVs with the service already set up')
     args = parser.parse_args()
-    build(output=args.output, home_chooser=args.home_chooser)
+    build(output=args.output, home_chooser=args.home_chooser, home_chooser_api=args.home_chooser_api)

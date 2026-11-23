@@ -29,6 +29,16 @@ class PackageTest(unittest.TestCase):
             self.assertIn(flag, (candidate.parent / 'app/audio-assets.js').read_text())
             self.assertNotIn(flag, (standard.parent / 'app/audio-assets.js').read_text())
 
+    def test_home_chooser_api_permission_is_only_added_to_the_api_package(self):
+        with tempfile.TemporaryDirectory() as dest:
+            standard = build.build(output=dest, home_chooser=True)
+            extended = build.build(output=dest, home_chooser_api=True)
+            regular = json.loads((standard.parent / 'app/appinfo.json').read_text())
+            api = json.loads((extended.parent / 'app/appinfo.json').read_text())
+            self.assertNotIn('requiredPermissions', regular)
+            self.assertEqual(api['id'], regular['id'])
+            self.assertEqual(api['requiredPermissions'], ['org.webosbrew.homechooser.applications'])
+
     def test_build_rejects_an_entrypoint_asset_missing_from_the_package(self):
         files = tuple(name for name in build.FILES if name != 'home-runtime.js')
         with tempfile.TemporaryDirectory() as dest, mock.patch.object(build, 'FILES', files):
@@ -55,6 +65,8 @@ class PackageTest(unittest.TestCase):
                 self.assertIn(prefix + 'artwork.js', names)
                 self.assertEqual(archive.extractfile(prefix + 'assets/static.png').read(),
                                  (ROOT / 'assets/static.png').read_bytes())
+                self.assertEqual(archive.extractfile(prefix + 'assets/channel-focus.png').read(),
+                                 (ROOT / 'assets/channel-focus.png').read_bytes())
                 self.assertIn(prefix + 'library.js', names)
                 for sound in ('menu', 'hover', 'select', 'back', 'page', 'start'):
                     paths = sorted((ROOT / 'assets/audio').glob(sound + '.*'))

@@ -38,7 +38,9 @@ The catalog listing is pending. Once it is available, open [Homebrew Channel](ht
 
 ## Set WiiOS as Home with Home Chooser
 
-The Home Chooser package registers WiiOS as a full-screen launcher and asks Home Chooser to handle Home selection. WiiOS uses its own app discovery and does not require the optional Home Chooser service permission.
+The standard Home Chooser package makes WiiOS available for Home selection and uses WiiOS app discovery.
+
+If app discovery is restricted on a rooted TV, open Home Chooser once to finish setup, then build WiiOS with `python3 scripts/build.py --home-chooser-api`. Install the IPK from `dist/home-chooser-api/`. This optional package can read the app catalog and icons through Home Chooser even when WiiOS runs as a regular app. On webOS 11 and newer, use Homebrew Channel 0.8.0 or later.
 
 1. On a rooted LG TV, restore LG Home and disable any existing Home remaps. Install [Home Chooser](https://repo.webosbrew.org/apps/org.webosbrew.homechooser/) from Homebrew Channel and open it once to finish setup.
 2. Install the WiiOS IPK from `wiios-home-chooser.zip` if your release provides it. To build it locally, run `python3 scripts/build.py --home-chooser` and install the IPK from `dist/home-chooser/` with webOS Dev Manager.
@@ -48,6 +50,8 @@ The Home Chooser package registers WiiOS as a full-screen launcher and asks Home
 Both IPKs use the same app ID. Keep using the Home Chooser variant for updates. Home Chooser documents webOS 4 through 12, with Homebrew Channel 0.8.0 or later required on webOS 11 and newer. WiiOS still needs hardware validation for this integration, including startup and recovery.
 
 For the device-specific QML integration, see the [observed compatibility and recovery notes](compatibility/profiles/observed/README.md).
+
+CPU, RAM, and temperature require the optional WiiOS metrics helper. The WiiOS IPK measures interface FPS locally.
 
 ## Build
 

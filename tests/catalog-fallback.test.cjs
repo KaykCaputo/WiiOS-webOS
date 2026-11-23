@@ -69,6 +69,29 @@ test('fresh Luna listing restores normal catalog status after stale data', () =>
   assert.equal(tv.WiiLibrary.diagnostics().source, 'luna');
 });
 
+test('Home Chooser is used if the local helper is absent and falls back when it is denied', () => {
+  let luna = 0;
+  const tv = environment({}, done => {
+    luna++;
+    done(null, {launchPoints: [{id: 'app.luna', title: 'Luna'}]});
+  });
+  tv.WiiChooser = {enabled: () => true, list: done => done(null, {
+    source: 'home-chooser', launchPoints: [{id: 'app.chooser', title: 'Chooser'}]
+  })};
+  tv.WiiLibrary.refresh((error, apps) => {
+    assert.equal(error, null);
+    assert.equal(apps[0].id, 'app.chooser');
+    assert.equal(tv.WiiLibrary.listedByChooser('app.chooser'), true);
+    assert.equal(luna, 0);
+  });
+  tv.WiiChooser.list = done => done({errorText: 'Permission denied'});
+  tv.WiiLibrary.refresh((error, apps) => {
+    assert.equal(error, null);
+    assert.equal(apps[0].id, 'app.luna');
+    assert.equal(luna, 1);
+  });
+});
+
 test('banner choices survive a new launcher session and refresh only when the image changes', () => {
   const store = {};
   const source = token => ({
