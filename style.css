@@ -8,8 +8,11 @@ button:focus { outline: none; }
 #home { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: repeating-linear-gradient(0deg, #ededed 0, #ededed 2px, #f4f4f4 3px, #f4f4f4 4px, #ececec 5px); }
 #grid-viewport { position: absolute; top: 50px; left: 0; width: 1280px; height: 477px; overflow: hidden; overflow: clip; contain: layout paint; }
 #menu { position: absolute; top: 0; left: 108px; width: 1080px; height: 465px; outline: none; }
-#channel-track { position: absolute; inset: 0; top: 0; right: 0; bottom: 0; left: 0; transform: translateX(0); transition: transform 340ms cubic-bezier(.22,.65,.28,1); }
-.channel-page { position: absolute; top: 0; width: 1080px; height: 465px; contain: layout; }
+#channel-track { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }
+.channel-page { position: absolute; top: 0; width: 1080px; height: 465px; contain: layout; transform: translateX(0); transition: transform 340ms cubic-bezier(.22,.65,.28,1); }
+.channel-page.parked { transition: none; }
+.strip-renderer #channel-track { transform: translateX(0); transition: transform 340ms cubic-bezier(.22,.65,.28,1); }
+.strip-renderer .channel-page { transform: none; transition: none; }
 .channel { position: absolute; width: 252px; height: 145px; padding: 0; border: 0; border-radius: 19px / 16px; background: transparent; }
 .channel-surface { position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 3px solid #b4b6b6; border-radius: inherit; background: #fafafa; box-shadow: 0 1px 2px rgba(0,0,0,.17), inset 0 0 0 2px white; pointer-events: none; transition: transform 180ms cubic-bezier(.2,.7,.3,1); }
 .channel-surface:after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 16px / 13px; box-shadow: inset 0 1px 4px rgba(0,0,0,.15); }

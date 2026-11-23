@@ -16,7 +16,8 @@
   var suppressOkUntilRelease = false, suppressPointerClickUntil = 0;
   var HOLD_DELAY = 650;
   var slots = [], surfaces = [], slotArtwork = [], highlighted = -1, movingSlot = -1, pageTimer = null, returnTimer = null;
-  var shownPage = -1, slideStart = 0, slideEnd = 0;
+  var shownPage = -1, slideStart = 0, slideEnd = 0, stripRenderer = false;
+  try { stripRenderer = storage.getItem('wiios.renderer') === 'strip'; } catch (ignore) {}
   var focusFrame = null, warmTimer = null, warmPage = 1;
   var pointerX = null, pointerY = null;
   var thumbnailTimer = null, thumbnailBusy = false, thumbnailReady = null, thumbnailDraw = null, artScale = 1;
@@ -358,8 +359,15 @@
     pageTimer = null;
     slideStart = slideEnd = page;
     var pages = $('channel-track').children;
+    var offset = pageOffset();
     for (var p = 0; p < 4; p++) {
-      if (Math.abs(p - page) > 1) pages[p].style.visibility = 'hidden';
+      if (Math.abs(p - page) > 1) {
+        if (pages[p].style.visibility !== 'hidden') pages[p].style.visibility = 'hidden';
+        if (!stripRenderer) {
+          pages[p].classList.add('parked');
+          if (pages[p].style.transform !== offset) pages[p].style.transform = offset;
+        }
+      }
       for (var i = p * 12; i < p * 12 + 12; i++) {
         if (!slotArtwork[i] || artworkInRange(p, i, page, page) || artworkInRange(p, i, warmPage, warmPage)) continue;
         releaseThumbnail(surfaces[i]);
@@ -380,6 +388,7 @@
     element.classList.toggle('off-page', !visible);
     for (var i = index * 12; i < index * 12 + 12; i++) slots[i].tabIndex = visible ? 0 : -1;
   }
+  function pageOffset() { return 'translateX(' + (-page * 1096) + 'px)'; }
   function updatePage() {
     hideTooltip();
     clearTimeout(pageTimer);
@@ -395,13 +404,21 @@
     if (previous >= 0) warmPage = page > previous ? page - 1 : page + 1;
     if (reduced || document.hidden || previous < 0) slideStart = slideEnd = page;
     else { slideStart = Math.min(slideStart, page); slideEnd = Math.max(slideEnd, page); }
-    for (var p = 0; p < pages.length; p++) {
-      var visibility = p < slideStart - 1 || p > slideEnd + 1 ? 'hidden' : '';
-      if (pages[p].style.visibility !== visibility) pages[p].style.visibility = visibility;
-    }
     mountPageArtwork();
-    var offset = 'translateX(' + (-page * 1096) + 'px)';
-    if (track.style.transform !== offset) track.style.transform = offset;
+    var offset = pageOffset();
+    if (stripRenderer && track.style.transform !== offset) track.style.transform = offset;
+    for (var p = 0; p < pages.length; p++) {
+      var sheet = pages[p], visible = p >= slideStart - 1 && p <= slideEnd + 1;
+      if (!visible) {
+        if (sheet.style.visibility !== 'hidden') sheet.style.visibility = 'hidden';
+        continue;
+      }
+      if (sheet.style.visibility === 'hidden') sheet.style.visibility = '';
+      if (!stripRenderer) {
+        if (sheet.classList.contains('parked')) sheet.classList.remove('parked');
+        if (sheet.style.transform !== offset) sheet.style.transform = offset;
+      }
+    }
     $('prev').disabled = page === 0; $('next').disabled = page === 3;
     $('page-label').textContent = 'Page ' + (page + 1) + ' of 4';
     if (reduced || document.hidden || previous < 0) trimPages(); else pageTimer = setTimeout(trimPages, 400);
@@ -909,6 +926,7 @@
   try { reduced = storage.getItem('wiios.motion') === 'reduced'; } catch (ignore) {}
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) reduced = true;
   $('stage').classList.toggle('reduced-motion', reduced);
+  $('stage').classList.toggle('strip-renderer', stripRenderer);
   try { statsVisible = storage.getItem('wiios.stats.visible') !== 'off'; } catch (ignore) {}
   updateStats();
   resize(); render(); clock(); clockTimer = setInterval(clock, 10000);

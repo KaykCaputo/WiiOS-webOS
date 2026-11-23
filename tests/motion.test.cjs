@@ -18,6 +18,7 @@ function app(options = {}) {
   const originalTimeout = w.setTimeout;
   w.setTimeout = (fn,ms) => {timeouts.push({fn,ms});return originalTimeout(fn,ms);};
   w.localStorage.setItem('wiios.stats.visible','off');
+  if (options.stripRenderer) w.localStorage.setItem('wiios.renderer','strip');
   const channels = Array.from({length:48},(_,i)=>({id:'app.'+i,name:'App '+i,theme:'internet'}));
   w.localStorage.setItem(options.tv ? 'wiios.channels.v2' : 'wiios.preview.v2',JSON.stringify(channels));
   w.WiiTV = {isTV:!!options.tv,canUninstall:()=>false,request:options.request};
@@ -77,10 +78,11 @@ test('loads artwork near the current page and releases distant pages after rapid
     assert.equal(a.d.activeElement.id,'slot-0');
     a.key(34);a.key(33);
     const track=a.d.getElementById('channel-track');
-    assert.equal(track.style.transform,'translateX(0px)');
+    assert.equal(track.children[0].style.transform,'translateX(0px)');
     assert.ok(Array.from(track.children).every(page=>page.style.visibility===''));
     await a.wait(430);
     assert.equal(track.children[3].style.visibility,'hidden');
+    assert.ok(track.children[3].classList.contains('parked'));
   } finally {a.close();}
 });
 test('identical catalog refresh keeps decoded images and never generates unused fallback art',()=>{
@@ -184,8 +186,10 @@ test('TV navigation keeps one DOM focus while the selected channel moves',()=>{
     assert.equal(a.d.querySelector('.channel.selected').id,'slot-18');
     const track=a.d.getElementById('channel-track');
     assert.equal(menu.style.transform,'');
-    assert.equal(track.style.transform,'translateX(-1096px)');
-    for(const page of track.children) assert.equal(page.style.transform,'');
+    assert.equal(track.style.transform,'');
+    for(const page of Array.from(track.children).slice(0,3)) assert.equal(page.style.transform,'translateX(-1096px)');
+    assert.equal(track.children[3].style.transform,'translateX(0px)');
+    assert.ok(track.children[3].classList.contains('parked'));
     assert.deepEqual(effects,['hover','hover','hover','page']);
     a.key(39);
     a.key(13);
@@ -202,12 +206,22 @@ test('rapid page reversals share a visual update and play each page sound',()=>{
   try {
     const track=a.d.getElementById('channel-track');
     a.key(34);a.key(34);a.key(33);
-    assert.equal(track.style.transform,'translateX(0px)');
+    assert.equal(track.children[0].style.transform,'translateX(0px)');
     assert.equal(a.frames.size,1);
     assert.deepEqual(effects,['page','page','page']);
     a.paint();
-    assert.equal(track.style.transform,'translateX(-1096px)');
+    assert.equal(track.children[0].style.transform,'translateX(-1096px)');
     assert.equal(a.d.querySelector('.channel.selected').id,'slot-12');
+  } finally {a.close();}
+});
+test('the strip renderer remains available for frame pacing comparisons',()=>{
+  const a=app({stripRenderer:true});
+  try {
+    const track=a.d.getElementById('channel-track');
+    a.key(34);
+    assert.ok(a.d.getElementById('stage').classList.contains('strip-renderer'));
+    assert.equal(track.style.transform,'translateX(-1096px)');
+    assert.ok(Array.from(track.children).every(page=>page.style.transform===''));
   } finally {a.close();}
 });
 test('a stationary pointer does not override directional selection during a page slide',()=>{
