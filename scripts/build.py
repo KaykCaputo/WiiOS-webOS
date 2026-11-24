@@ -3,8 +3,8 @@
 import argparse
 import gzip
 import hashlib
-from html.parser import HTMLParser
 import io
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
@@ -16,6 +16,9 @@ import tarfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+if not __package__:
+    sys.path.insert(0, str(ROOT))
+from installer.helper import HELPER_FILES
 FILES = ('appinfo.json', 'index.html', 'style.css', 'bridge.js', 'channels.js', 'ssap-provider.js', 'library.js', 'artwork.js', 'thumbnails.js', 'performance.js', 'audio.js', 'home-chooser.js', 'stats.js', 'app.js', 'home-runtime.js', 'icon.png', 'assets/static.png', 'assets/channel-focus.png')
 SOUNDS = ('menu', 'hover', 'select', 'back', 'page', 'start')
 IPK_MTIME = 1577836800
@@ -45,6 +48,7 @@ def validate_entrypoint_assets(files):
     if missing:
         raise FileNotFoundError('index.html references unpackaged local assets: ' + ', '.join(missing))
     return parser.paths
+
 
 def compressed_tar(files):
     buffer = io.BytesIO()
@@ -76,11 +80,9 @@ def ar_archive(members):
             result.extend(b'\n')
     return bytes(result)
 
-def build(root=ROOT, output=None, *, home_chooser=False, home_chooser_api=False):
+def build(root=ROOT, output=None):
     root = Path(root)
     output = Path(output) if output else root / 'dist'
-    if home_chooser or home_chooser_api:
-        output /= 'home-chooser-api' if home_chooser_api else 'home-chooser'
     info = json.loads((root / 'appinfo.json').read_text())
     package_info = json.loads((root / 'package.json').read_text())
     lock = json.loads((root / 'package-lock.json').read_text())
@@ -97,12 +99,8 @@ def build(root=ROOT, output=None, *, home_chooser=False, home_chooser_api=False)
             '\nExtract the complete ZIP and keep the WiiOS-webOS directory structure.'
         )
     files = {name: (root / name).read_bytes() for name in FILES}
-    if home_chooser or home_chooser_api:
-        info['appCategory'] = list(dict.fromkeys([*info.get('appCategory', []), 'home']))
-        if home_chooser_api:
-            permission = 'org.webosbrew.homechooser.applications'
-            info['requiredPermissions'] = list(dict.fromkeys([*info.get('requiredPermissions', []), permission]))
-        files['appinfo.json'] = (json.dumps(info, indent=2) + '\n').encode()
+    for name in HELPER_FILES:
+        files['helper/' + name] = (root / 'root-services' / name).read_bytes()
     for path in sorted((root / 'assets').glob('*.svg')):
         files[path.relative_to(root).as_posix()] = path.read_bytes()
     manifest = {}
@@ -124,10 +122,6 @@ def build(root=ROOT, output=None, *, home_chooser=False, home_chooser_api=False)
     validate_entrypoint_assets(files)
 
     (root / 'audio-assets.js').write_bytes(files['audio-assets.js'])
-    if home_chooser or home_chooser_api:
-        files['audio-assets.js'] += b'window.WIIOS_HOME_CHOOSER = true;\n'
-    if home_chooser_api:
-        files['audio-assets.js'] += b'window.WIIOS_HOME_CHOOSER_API = true;\n'
     stage = output / 'app'
     if stage.exists():
         shutil.rmtree(stage)
@@ -164,6 +158,8 @@ def build_installer(root, output, package):
         for source in sorted((root / folder).rglob('*')):
             if source.is_file() and source.suffix in ('.py', '.json', '.md', '.sh', '.js') and not {'tests', '__pycache__'}.intersection(source.parts):
                 content[source.relative_to(root).as_posix()] = source.read_bytes()
+    for name in HELPER_FILES:
+        content['installer/helper_payload/' + name] = (root / 'root-services' / name).read_bytes()
     for name in ('LICENSE', 'NOTICE'):
         content[name] = (root / name).read_bytes()
     with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
@@ -204,14 +200,9 @@ def build_installer(root, output, package):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, help='Build only the selected IPK in this directory. A build with no options refreshes release/.')
-    variants = parser.add_mutually_exclusive_group()
-    variants.add_argument('--home-chooser', action='store_true',
-                        help='Build a Home Chooser candidate in the home-chooser subdirectory')
-    variants.add_argument('--home-chooser-api', action='store_true',
-                          help='Build a Home Chooser API package for TVs with the service already set up')
+    parser.add_argument('--output', type=Path, help='Build the IPK and installer in this directory. A build with no options refreshes release/.')
     args = parser.parse_args()
-    if args.output is None and not (args.home_chooser or args.home_chooser_api):
+    if args.output is None:
         subprocess.run([sys.executable, '-m', 'scripts.prepare_release', '--build'], cwd=ROOT, check=True)
     else:
-        build(output=args.output, home_chooser=args.home_chooser, home_chooser_api=args.home_chooser_api)
+        build(output=args.output)

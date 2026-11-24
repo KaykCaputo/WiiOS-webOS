@@ -634,7 +634,7 @@
       option('library-choice', 'App Library') + option('ssap-choice', 'TV Pairing for App Catalog', window.WiiSSAP && window.WiiSSAP.configured() ? 'Connected to ' + window.WiiSSAP.address() : 'Optional pairing when Luna is restricted') + option('audio-choice', 'Music & Sounds') +
       option('motion-choice', 'Animations: ' + (reduced ? 'reduced' : 'enabled')) + option('remove-choice', 'Clear This Channel') +
       option('stats-choice', 'Show stats: ' + (statsVisible ? 'On' : 'Off'), 'CPU · RAM · temperature · FPS') + option('about-choice', 'About WiiOS', preview ? 'Browser Preview · ' + uiVersion : 'webOS App · ' + uiVersion);
-    if (window.WIIOS_HOME_CHOOSER && TV.isTV) {
+    if (TV.isTV) {
       markup = option('home-chooser-choice', 'Use WiiOS as Home', 'Open Home Chooser to confirm') + markup;
     }
     dialog('Wii Options', 'Customize your menu channels.', markup, '', null);
@@ -887,7 +887,7 @@
       event.preventDefault();
       if (carrying >= 0) { carrying = -1; highlight(); toast('Move canceled.'); }
       else if (page > 0) switchPage(0);
-      else if (!window.WIIOS_HOME_CHOOSER) dialog('Exit WiiOS?', 'Return to the TV interface?', '', 'Exit', function () { if (preview) { closeDialog(); toast('Close this browser tab to exit.'); } else { Sound.pause(); window.close(); } });
+      else if (!window.WiiChooser || !window.WiiChooser.isSelectedHome()) dialog('Exit WiiOS?', 'Return to the TV interface?', '', 'Exit', function () { if (preview) { closeDialog(); toast('Close this browser tab to exit.'); } else { Sound.pause(); window.close(); } });
     }
   });
   document.addEventListener('keyup', function (event) {
@@ -960,6 +960,10 @@
     else refreshLibrary();
   }
   if (!preview) {
+    if (window.WiiChooser) {
+      window.WiiChooser.probe();
+      document.addEventListener('webOSRelaunch', function () { window.WiiChooser.probe(null, true); });
+    }
     queueLibraryRefresh();
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { clearTimeout(libraryTimer); libraryTimer = null; }

@@ -3,6 +3,7 @@
   var cacheKey = 'wiios.homechooser.icons.v1', budget = 512 * 1024, maxIcon = 128 * 1024;
   var cached = Object.create(null), records = Object.create(null), order = [], bytes = 0;
   var available = false, busy = false, retryAt = 0;
+  var status = null, checkedAt = 0, probing = [];
   function validId(id) { return typeof id === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(id); }
   function validIcon(src) {
     return typeof src === 'string' && src.length <= maxIcon &&
@@ -42,14 +43,27 @@
       });
     } catch (ignore) {}
   }
-  function enabled() {return !!(root.WIIOS_HOME_CHOOSER_API && root.WiiTV && root.WiiTV.chooserRequest);}
+  function enabled() {return !!(root.WiiTV && root.WiiTV.isTV && root.WiiTV.chooserRequest);}
+  function probe(done, force) {
+    if (!enabled()) {if (done) done(null); return;}
+    if (probing.length) {if (done) probing.push(done); return;}
+    if (!force && checkedAt && Date.now() - checkedAt < 30000) {if (done) done(status); return;}
+    probing.push(done);
+    root.WiiTV.chooserRequest('getInfo', {}, function (error, info) {
+      checkedAt = Date.now();
+      status = !error && info ? info : null;
+      var waiting = probing;
+      probing = [];
+      waiting.forEach(function (callback) {if (callback) callback(status);});
+    });
+  }
   function list(done) {
-    if (!enabled()) {done({errorText: 'Home Chooser discovery is disabled.'}); return;}
+    if (!enabled()) {done({errorText: 'Home Chooser discovery is unavailable.'}); return;}
     var request = root.WiiTV.chooserRequest;
-    request('getInfo', {}, function (error, info) {
+    probe(function (info) {
       available = false;
-      if (error || !info || info.root !== true || info.permitted !== true || !(info.apiVersion >= 2)) {
-        done(error || {errorText: 'Home Chooser discovery requires an elevated service with API level 2 and app permission.'}); return;
+      if (!info || info.root !== true || info.permitted !== true || !(info.apiVersion >= 2)) {
+        done({errorText: 'Home Chooser discovery requires an elevated service with API level 2 and app permission.'}); return;
       }
       request('listLaunchPoints', {}, function (failure, result) {
         if (failure || !result || !Array.isArray(result.launchPoints)) {
@@ -105,6 +119,7 @@
     });
   }
   if (enabled()) loadCache();
-  root.WiiChooser = {enabled: enabled, list: list, icons: icons,
+  root.WiiChooser = {enabled: enabled, probe: probe, list: list, icons: icons,
+    isSelectedHome: function () {return !!(status && status.isSelectedHome === true);},
     image: function (id) {return cached[id] ? cached[id].image : null;}};
 }(window));

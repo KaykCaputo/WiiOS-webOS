@@ -8,16 +8,16 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'home-chooser.js'), 'utf8');
 const icon = 'data:image/png;base64,iVBORw0KGgo=';
 
-function setup({permitted = true, enabled = true, store = {}, iconPath = '/app/icon.png'} = {}) {
+function setup({permitted = true, enabled = true, selected = false, store = {}, iconPath = '/app/icon.png'} = {}) {
   const calls = [];
   const window = {
-    WIIOS_HOME_CHOOSER_API: enabled,
     localStorage: {getItem: key => store[key], setItem: (key, value) => {store[key] = value;}},
     WiiTV: {
+      isTV: enabled,
       chooserRequest(method, payload, done) {
         calls.push([method, JSON.parse(JSON.stringify(payload))]);
         const results = {
-          getInfo: {apiVersion: 3, root: true, permitted, isSelectedHome: false},
+          getInfo: {apiVersion: 3, root: true, permitted, isSelectedHome: selected},
           listLaunchPoints: {launchPoints: [
             {id: 'app.demo', title: 'Demo', launchPointId: 'demo_default', icon: iconPath},
             {id: 'app.extra', title: 'Extra', launchPointId: 'extra_default', icon: '/app/extra.png'},
@@ -63,11 +63,19 @@ test('stored Home Chooser icons are reused until the launch point icon changes',
   assert.equal(updated.chooser.image('app.demo'), null);
 });
 
-test('Home Chooser permission denial and the standard package avoid privileged discovery', () => {
+test('Home Chooser permission denial and browser preview skip privileged discovery', () => {
   const denied = setup({permitted: false});
   denied.chooser.list(error => assert.ok(error));
   assert.equal(denied.calls.length, 1);
   const standard = setup({enabled: false});
   standard.chooser.list(error => assert.ok(error));
   assert.equal(standard.calls.length, 0);
+});
+
+test('Home Chooser reports the current Home independently of catalog permissions', () => {
+  const {chooser, calls} = setup({permitted: false, selected: true});
+  chooser.probe();
+  assert.equal(chooser.isSelectedHome(), true);
+  chooser.list(error => assert.ok(error));
+  assert.deepEqual(calls, [['getInfo', {}]]);
 });

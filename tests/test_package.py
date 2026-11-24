@@ -14,31 +14,6 @@ spec.loader.exec_module(build)
 
 
 class PackageTest(unittest.TestCase):
-    def test_home_chooser_variant_has_an_opt_in_manifest_and_keeps_the_app_id(self):
-        with tempfile.TemporaryDirectory() as dest:
-            standard = build.build(output=dest)
-            original = standard.read_bytes()
-            candidate = build.build(output=dest, home_chooser=True)
-            self.assertEqual(candidate.name, standard.name)
-            self.assertEqual(candidate.parent, standard.parent / 'home-chooser')
-            self.assertEqual(standard.read_bytes(), original)
-            source = json.loads((standard.parent / 'app/appinfo.json').read_bytes())
-            staged = json.loads((candidate.parent / 'app/appinfo.json').read_bytes())
-            self.assertEqual(staged, dict(source, appCategory=['home']))
-            flag = 'window.WIIOS_HOME_CHOOSER = true;'
-            self.assertIn(flag, (candidate.parent / 'app/audio-assets.js').read_text())
-            self.assertNotIn(flag, (standard.parent / 'app/audio-assets.js').read_text())
-
-    def test_home_chooser_api_permission_is_only_added_to_the_api_package(self):
-        with tempfile.TemporaryDirectory() as dest:
-            standard = build.build(output=dest, home_chooser=True)
-            extended = build.build(output=dest, home_chooser_api=True)
-            regular = json.loads((standard.parent / 'app/appinfo.json').read_text())
-            api = json.loads((extended.parent / 'app/appinfo.json').read_text())
-            self.assertNotIn('requiredPermissions', regular)
-            self.assertEqual(api['id'], regular['id'])
-            self.assertEqual(api['requiredPermissions'], ['org.webosbrew.homechooser.applications'])
-
     def test_build_rejects_an_entrypoint_asset_missing_from_the_package(self):
         files = tuple(name for name in build.FILES if name != 'home-runtime.js')
         with tempfile.TemporaryDirectory() as dest, mock.patch.object(build, 'FILES', files):
@@ -63,6 +38,10 @@ class PackageTest(unittest.TestCase):
                 prefix = 'usr/palm/applications/com.wiios.launcher/'
                 self.assertIn(prefix + 'home-runtime.js', names)
                 self.assertIn(prefix + 'artwork.js', names)
+                self.assertIn(prefix + 'home-chooser.js', names)
+                for name in ('catalog.js', 'metrics.js', 'control.sh'):
+                    self.assertEqual(archive.extractfile(prefix + 'helper/' + name).read(),
+                                     (ROOT / 'root-services' / name).read_bytes())
                 self.assertEqual(archive.extractfile(prefix + 'assets/static.png').read(),
                                  (ROOT / 'assets/static.png').read_bytes())
                 self.assertEqual(archive.extractfile(prefix + 'assets/channel-focus.png').read(),
@@ -77,6 +56,8 @@ class PackageTest(unittest.TestCase):
                     self.assertIn(prefix + name, names)
                     self.assertEqual(archive.extractfile(prefix + name).read(), paths[0].read_bytes())
                 app = json.load(archive.extractfile(prefix + 'appinfo.json'))
+                self.assertEqual(app['appCategory'], ['home'])
+                self.assertNotIn('requiredPermissions', app)
                 self.assertEqual(app['version'], json.loads((ROOT / 'appinfo.json').read_text())['version'])
                 self.assertFalse(any('/assets/apps/' in item for item in names))
 

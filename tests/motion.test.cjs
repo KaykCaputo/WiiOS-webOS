@@ -22,7 +22,6 @@ function app(options = {}) {
   const channels = Array.from({length:48},(_,i)=>({id:'app.'+i,name:'App '+i,theme:'internet'}));
   w.localStorage.setItem(options.tv ? 'wiios.channels.v2' : 'wiios.preview.v2',JSON.stringify(channels));
   w.WiiTV = {isTV:!!options.tv,canUninstall:()=>false,request:options.request};
-  w.WIIOS_HOME_CHOOSER = !!options.homeChooser;
   w.WiiAudio = {effect:options.effect || (()=>{}),unlock(){},resume(){},pause(){}};
   const points = channels.map((c,i)=>({id:c.id,title:c.name,images:[{src:'http://127.0.0.1:19083/v1/images/'+i.toString(16).padStart(64,'0'),kind:'icon'}]}));
   w.XMLHttpRequest = function(){this.open=()=>{};this.send=()=>{
@@ -42,21 +41,21 @@ function app(options = {}) {
 }
 test('Home Chooser setup is opt-in and opens the owner confirmation',()=>{
   const calls=[];
-  const standard=app({tv:true});
-  const chooser=app({tv:true,homeChooser:true,request:(method,params,done)=>{
+  const preview=app();
+  const chooser=app({tv:true,request:(method,params,done)=>{
     calls.push([method,JSON.stringify(params)]);
     done({errorCode:'NOT_FOUND'});
   }});
   try {
-    standard.d.getElementById('settings').click();
-    assert.equal(standard.d.getElementById('home-chooser-choice'),null);
+    preview.d.getElementById('settings').click();
+    assert.equal(preview.d.getElementById('home-chooser-choice'),null);
     chooser.d.getElementById('settings').click();
     assert.equal(calls.length,0);
     chooser.d.getElementById('home-chooser-choice').click();
     assert.deepEqual(calls,[['launch','{"id":"org.webosbrew.homechooser","params":{"request":"com.wiios.launcher"}}']]);
     assert.match(chooser.d.getElementById('toast').textContent,/Homebrew Channel/);
     assert.equal(chooser.d.getElementById('home-chooser-choice').disabled,false);
-  } finally {standard.close();chooser.close();}
+  } finally {preview.close();chooser.close();}
 });
 test('loads artwork near the current page and releases distant pages after rapid navigation',async()=>{
   const a=app();

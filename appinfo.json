@@ -8,5 +8,6 @@
   "icon": "icon.png",
   "resolution": "1280x720",
   "transparent": false,
+  "appCategory": ["home"],
   "disableBackHistoryAPI": true
 }

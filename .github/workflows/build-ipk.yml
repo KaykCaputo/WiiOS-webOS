@@ -43,7 +43,6 @@ jobs:
         working-directory: dist
         run: |
           sha256sum --check --strict *.sha256
-          python3 -m zipfile -t wiios-home-chooser.zip
 
       - name: Upload release assets
         uses: actions/upload-artifact@v7
@@ -56,7 +55,6 @@ jobs:
             dist/*.pyz.sha256
             dist/build-manifest.json
             dist/com.wiios.launcher*.manifest.json
-            dist/wiios-home-chooser.zip
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -92,8 +90,7 @@ jobs:
           fi
           ASSETS=(release-assets/*.ipk release-assets/*.ipk.sha256
                   release-assets/*.pyz release-assets/*.pyz.sha256
-                  release-assets/build-manifest.json release-assets/com.wiios.launcher*.manifest.json
-                  release-assets/wiios-home-chooser.zip)
+                  release-assets/build-manifest.json release-assets/com.wiios.launcher*.manifest.json)
           NOTES=$(mktemp)
           trap 'rm -f "$NOTES"' EXIT
           python3 -m scripts.release_notes "$GITHUB_REPOSITORY" "$TAG" "$GITHUB_SHA" > "$NOTES"

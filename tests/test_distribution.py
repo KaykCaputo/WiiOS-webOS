@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import zipfile
 
 from scripts.build import build, build_installer
 from scripts.prepare_release import build_release
@@ -28,7 +29,11 @@ class DistributionTests(unittest.TestCase):
             manifest = json.loads((output / 'build-manifest.json').read_text())
             self.assertEqual(previous.read_bytes(), b'previous')
             self.assertTrue(current.read_bytes().startswith(b'!<arch>\n'))
-            self.assertIn('home-chooser-api/' + current.name, manifest['artifacts'])
+            self.assertEqual(sorted(output.glob('*.ipk')), sorted([current, previous]))
+            for name in ('com.wiios.launcher.manifest.json', 'com.wiios.launcher.homebrew.manifest.json'):
+                entry = json.loads((output / name).read_text())
+                self.assertEqual(entry['ipkUrl'], current.name)
+                self.assertEqual(entry['ipkHash']['sha256'], manifest['artifacts'][current.name])
             for path, digest in manifest['artifacts'].items():
                 self.assertEqual(hashlib.sha256((output / path).read_bytes()).hexdigest(), digest)
 
@@ -37,7 +42,7 @@ class DistributionTests(unittest.TestCase):
             root = Path(directory) / 'WiiOS-webOS'
             root.mkdir()
             source = Path(__file__).resolve().parents[1]
-            for folder in ('installer', 'compatibility', 'home', 'assets'):
+            for folder in ('installer', 'compatibility', 'home', 'assets', 'root-services'):
                 shutil.copytree(source / folder, root / folder,
                                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
             for name in ('appinfo.json', 'package.json', 'package-lock.json', 'index.html',
@@ -68,6 +73,10 @@ class DistributionTests(unittest.TestCase):
             self.assertEqual(manifest['artifacts'][package.name], hashlib.sha256(package.read_bytes()).hexdigest())
             self.assertEqual(manifest['artifacts'][installer.name], hashlib.sha256(installer.read_bytes()).hexdigest())
             self.assertEqual(manifest['verifiedProfiles'], [])
+            with zipfile.ZipFile(installer) as archive:
+                for name in ('metrics.js', 'catalog.js', 'control.sh'):
+                    self.assertEqual(archive.read('installer/helper_payload/' + name),
+                                     (Path(__file__).resolve().parents[1] / 'root-services' / name).read_bytes())
             version = json.loads((Path(__file__).resolve().parents[1] / 'appinfo.json').read_text())['version']
             assets = (Path(__file__).resolve().parents[1] / 'audio-assets.js').read_text()
             self.assertIn('window.WIIOS_VERSION = ' + json.dumps(version), assets)
