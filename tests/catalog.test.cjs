@@ -34,3 +34,30 @@ test('installed application images are discovered and served without bundled art
     fs.rmSync(base, {recursive: true, force: true});
   }
 });
+
+test('TV helper uses installed manifests and artwork when Luna denies discovery', async t => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'wiios-manifests-'));
+  t.after(() => fs.rmSync(base, {recursive: true, force: true}));
+  const writeApp = (id, info) => {
+    const directory = path.join(base, id);
+    fs.mkdirSync(directory);
+    fs.writeFileSync(path.join(directory, 'appinfo.json'), JSON.stringify({id, ...info}));
+    return directory;
+  };
+  const directory = writeApp('app.demo', {title: 'Demo', icon: 'icon.png'});
+  fs.writeFileSync(path.join(directory, 'icon.png'), Buffer.from('89504e470d0a1a0a', 'hex'));
+  writeApp('app.hidden', {visible: false});
+  writeApp('app.disabled', {launchable: false});
+  writeApp('app.mismatched', {id: 'app.other'});
+  writeApp('com.wiios.launcher', {});
+  const called = [];
+  const service = catalog({roots: [base], execute: (command, args, options, cb) => {
+    called.push(args[4].split('/').pop());
+    cb(null, '{"returnValue":false}');
+  }});
+  const value = await new Promise((resolve, reject) => service.list((err, result) => err ? reject(err) : resolve(result)));
+  assert.deepEqual(called, ['listLaunchPoints', 'listApps']);
+  assert.equal(value.method, 'app-manifests');
+  assert.deepEqual(value.launchPoints.map(app => app.id), ['app.demo']);
+  assert.match(value.launchPoints[0].images[0].src, /^http:\/\/127\.0\.0\.1:19083\/v1\/images\/[a-f0-9]{64}$/);
+});

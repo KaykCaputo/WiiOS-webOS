@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
-function environment(initial) {
+function environment(initial, response = () => ({returnValue: true,
+  launchPoints: [{id: 'app.valid', title: 'Valid'}]})) {
   const saved = Object.assign({}, initial || {});
   const outbound = [];
   const storage = {
@@ -21,8 +22,7 @@ function environment(initial) {
       if (packet.type === 'register') {
         this.onmessage({data: JSON.stringify({type: 'registered', payload: {'client-key': 'approved-key'}})});
       } else if (packet.type === 'request') {
-        this.onmessage({data: JSON.stringify({type: 'response', id: packet.id, payload: {returnValue: true,
-          launchPoints: [{id: 'app.valid', title: 'Valid'}]}})});
+        this.onmessage({data: JSON.stringify({type: 'response', id: packet.id, payload: response(packet.uri)})});
       }
     }
     close() {}
@@ -82,4 +82,23 @@ test('SSAP ignores an unsafe stored endpoint', () => {
   assert.equal(window.WiiSSAP.configured(), false);
   window.WiiSSAP.list(() => {});
   assert.equal(outbound.length, 0);
+});
+
+test('paired TV falls back from SSAP launch points to installed apps', () => {
+  const {window, outbound, Socket} = environment({}, uri => uri.endsWith('/listLaunchPoints')
+    ? {returnValue: false}
+    : {returnValue: true, apps: [{id: 'app.demo'}]});
+  window.WiiSSAP.configure('192.168.1.8', false);
+  let app;
+  window.WiiSSAP.list((error, result) => {
+    assert.equal(error, null);
+    app = result.launchPoints[0].id;
+  });
+  Socket.last.onopen();
+  Socket.last.onopen();
+  assert.equal(app, 'app.demo');
+  assert.deepEqual(outbound.filter(item => item[0] === 'request').map(item => item[1]), [
+    'ssap://com.webos.applicationManager/listLaunchPoints',
+    'ssap://com.webos.applicationManager/listApps'
+  ]);
 });

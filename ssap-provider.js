@@ -71,9 +71,16 @@
   }
   function list(done) {
     sendRequest('ssap://com.webos.applicationManager/listLaunchPoints', {}, function (error, data) {
-      if (error) {done(error); return;}
-      if (!Array.isArray(data.launchPoints)) {done({errorText: 'SSAP did not return launch points.'}); return;}
-      done(null, {returnValue: true, source: 'ssap', launchPoints: data.launchPoints});
+      if (!error && data && Array.isArray(data.launchPoints) && data.launchPoints.length) {
+        done(null, {returnValue: true, source: 'ssap', launchPoints: data.launchPoints}); return;
+      }
+      if (!connection || !connection.key) {done(error || {errorText: 'SSAP did not return launch points.'}); return;}
+      sendRequest('ssap://com.webos.applicationManager/listApps', {}, function (failure, alternate) {
+        if (failure || !alternate || !Array.isArray(alternate.apps) || !alternate.apps.length) {
+          done(failure || error || {errorText: 'SSAP did not return installed apps.'}); return;
+        }
+        done(null, {returnValue: true, source: 'ssap', launchPoints: alternate.apps});
+      });
     });
   }
   function check(appId, done) {

@@ -111,3 +111,42 @@ test('banner choices survive a new launcher session and refresh only when the im
   assert.equal(reopened.WiiLibrary.artworkVersion(), 1);
   assert.match(environment(store).WiiLibrary.image('app.demo').choices[0].src, /b{64}$/);
 });
+
+test('Luna falls back to installed apps when launch points have no usable apps', () => {
+  const tv = environment({});
+  const calls = [];
+  tv.WiiTV.request = (method, params, done) => {
+    calls.push(method);
+    if (method === 'listLaunchPoints') {
+      done(null, {launchPoints: [{id: 'com.webos.app.home'}, {id: 'app.hidden', visible: false}]});
+    } else {
+      done(null, {apps: [{id: 'app.demo', icon: 'icon.png', folderPath: '/usr/palm/applications/app.demo'}]});
+    }
+  };
+  tv.WiiLibrary.refresh((error, apps) => {
+    assert.equal(error, null);
+    assert.deepEqual(calls, ['listLaunchPoints', 'listApps']);
+    assert.equal(apps[0].id, 'app.demo');
+    assert.equal(tv.WiiLibrary.image('app.demo').choices[0].src, 'file:///usr/palm/applications/app.demo/icon.png');
+  });
+});
+
+test('paired TV artwork is saved and restored only for the paired host', () => {
+  const store = {};
+  const tv = environment(store, done => done({errorText: 'Denied'}));
+  tv.WiiSSAP = {configured: () => true, address: () => '192.168.1.7', list: done => done(null, {
+    source: 'ssap',
+    launchPoints: [{id: 'app.demo', bgImage: 'http://192.168.1.8:3000/resources/untrusted.png',
+      largeIcon: 'http://192.168.1.7:3000/resources/%2e%2e/private.png',
+      icon: 'http://192.168.1.7:3000/resources/valid.png'}]
+  })};
+  tv.WiiLibrary.refresh((error, apps) => {
+    assert.equal(error, null);
+    assert.equal(apps.length, 1);
+    const choices = tv.WiiLibrary.image('app.demo').choices;
+    assert.equal(choices.length, 1);
+    assert.equal(choices[0].src, 'http://192.168.1.7:3000/resources/valid.png');
+  });
+  const reopened = environment(store);
+  assert.equal(reopened.WiiLibrary.image('app.demo'), null);
+});

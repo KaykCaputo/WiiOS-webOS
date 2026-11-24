@@ -194,22 +194,50 @@ function catalog(options) {
     return null;
   }
 
+  function appDirectory(root, id) {
+    try {
+      var real = fs.realpathSync(path.join(root, id));
+      if (real.indexOf(fs.realpathSync(root) + '/') === 0 && fs.statSync(real).isDirectory()) return real;
+    } catch (e) {}
+    return null;
+  }
+
+  function appMetadata(base) {
+    try {
+      var file = path.join(base, 'appinfo.json'), real = fs.realpathSync(file);
+      if (real.indexOf(base + '/') !== 0) return null;
+      var stat = fs.statSync(real);
+      if (stat.isFile() && stat.size > 0 && stat.size < 128 * 1024) return JSON.parse(fs.readFileSync(real, 'utf8'));
+    } catch (e) {}
+    return null;
+  }
+
+  function usablePoint(point) {
+    return point && typeof point.id === 'string' && /^[A-Za-z0-9_.-]{1,160}$/.test(point.id) &&
+      point.visible !== false && point.noDisplay !== true && point.launchable !== false && point.lptype !== 'bookmark' &&
+      ['com.wiios.launcher', 'com.webos.app.home', 'com.webos.app.fullhome'].indexOf(point.id) === -1;
+  }
+
+  function installedManifests() {
+    var points = [], seen = Object.create(null);
+    roots.forEach(function (root) {
+      var ids;
+      try {ids = fs.readdirSync(root).slice(0, 512);} catch (e) {return;}
+      ids.forEach(function (id) {
+        if (!/^[A-Za-z0-9_.-]{1,160}$/.test(id) || seen[id] || points.length >= 512) return;
+        var base = appDirectory(root, id), info = base && appMetadata(base);
+        if (!usablePoint(info) || info.id !== id) return;
+        seen[id] = true;
+        points.push({id: id, title: info.title, bgColor: info.bgColor});
+      });
+    });
+    return points;
+  }
+
   function installedArtwork(id, known) {
     var choices = [], info = null, base = null, seen = Object.create(null);
-    for (var i = 0; i < roots.length; i++) {
-      try {
-        var test = path.join(roots[i], id);
-        var real = fs.realpathSync(test);
-        if (real.indexOf(fs.realpathSync(roots[i]) + '/') !== 0 || !fs.statSync(real).isDirectory()) continue;
-        base = real;
-        var file = path.join(base, 'appinfo.json');
-        try {
-          var stat = fs.statSync(file);
-          if (stat.isFile() && stat.size > 0 && stat.size < 128 * 1024) info = JSON.parse(fs.readFileSync(file, 'utf8'));
-        } catch (ignored) {}
-        break;
-      } catch (e) {base = null;}
-    }
+    for (var i = 0; i < roots.length && !base; i++) base = appDirectory(roots[i], id);
+    if (base) info = appMetadata(base);
     function append(filename, kind, source) {
       if (typeof filename !== 'string') return;
       var rank = score(filename, kind, source);
@@ -248,77 +276,93 @@ function catalog(options) {
     if (cached && Date.now() - updated < 10000) {done(null, cached); return;}
     if (waiting) {waiting.push(done); return;}
     waiting = [done];
-    execute('/usr/bin/luna-send', ['-n', '1', '-w', '3000', 'luna://com.webos.applicationManager/listLaunchPoints', '{}'],
-      {timeout: 4500, maxBuffer: 2 * 1024 * 1024}, function (error, stdout) {
-        var result;
-        try {
-          if (error) throw error;
-          var data = JSON.parse(stdout);
-          if (data.returnValue !== true || !Array.isArray(data.launchPoints)) throw new Error('Application list unavailable');
-          var known = Object.create(null), seen = Object.create(null);
-          var points = data.launchPoints.slice(0, 512).filter(function (point) {
-            if (!point || typeof point.id !== 'string' || !/^[A-Za-z0-9_.-]{1,160}$/.test(point.id) || seen[point.id] || point.visible === false) return false;
-            if (['com.wiios.launcher', 'com.webos.app.home', 'com.webos.app.fullhome'].indexOf(point.id) !== -1) return false;
-            seen[point.id] = true; return true;
-          }).map(function (point) {
-            var choices = [], used = Object.create(null);
-            [['mediumLargeIcon', 'icon'], ['largeIcon', 'icon'], ['icon', 'icon'],
-              ['bgImage', 'banner'], ['mediumIcon', 'icon'], ['favicon', 'icon'], ['imageForRecents', 'banner']].forEach(function (field) {
-              var value = point[field[0]], rank = typeof value === 'string' ? score(value, field[1], 'launch') : -1;
-              if (rank < 0) return;
-              var candidate = image(point.id, value, field[1], known);
-              if (candidate && !used[candidate.src]) {candidate._priority = rank; choices.push(candidate); used[candidate.src] = true;}
-            });
-
-            if (Array.isArray(point.bgImages)) point.bgImages.slice(0, 3).forEach(function (value) {
-              var rank = score(value, 'banner', 'launch');
-              if (rank < 0) return;
-              var candidate = image(point.id, value, 'banner', known);
-              if (candidate && !used[candidate.src]) {candidate._priority = rank; choices.push(candidate); used[candidate.src] = true;}
-            });
-            var extra = installedArtwork(point.id, known);
-            extra.choices.forEach(function (candidate) {
-              if (!used[candidate.src]) {choices.push(candidate); used[candidate.src] = true;}
-            });
-            choices.sort(function (a, b) {return b._priority - a._priority;});
-            return {id: point.id, title: String(point.title || point.id).slice(0, 80),
-              bgColor: /^#[0-9a-f]{6}$/i.test(point.bgColor) ? point.bgColor : extra.bgColor || '#eef0f2',
-              _candidates: choices};
-          });
-
-          var repeats = Object.create(null), users = Object.create(null);
-          points.forEach(function (point) {
-            point._candidates.forEach(function (candidate) {
-              var token = candidate.src.split('/').pop(), sig = known[token] && known[token].signature;
-              if (!sig) return;
-              if (!users[sig]) users[sig] = Object.create(null);
-              users[sig][point.id] = true;
-            });
-          });
-          Object.keys(users).forEach(function (sig) {repeats[sig] = Object.keys(users[sig]).length;});
-          points.forEach(function (point) {
-            point.images = point._candidates.filter(function (candidate) {
-              var token = candidate.src.split('/').pop(), item = known[token];
-              if (item && item.signature && repeats[item.signature] >= 3) return false;
-
-              if (candidate.kind === 'banner' && candidate._priority <= 25 &&
-                  point._candidates.some(function (other) {return other.kind === 'icon';})) return false;
-              return true;
-            }).slice(0, 8).map(function (candidate) {var token = candidate.src.split('/').pop(), item = known[token];
-                var icon = '';
-                if (candidate.kind === 'icon' && item && item.path && item.type === 'image/png') {
-                  if (item.background === undefined) item.background = pngIconBackground(item.path);
-                  icon = item.background;
-                }
-                return {src: candidate.src, kind: candidate.kind, recommended: candidate._priority > 25, background: icon};});
-            delete point._candidates;
-          });
-          result = {returnValue: true, launchPoints: points, source: 'local', helperFingerprint: HELPER_FINGERPRINT};
-          images = known; cached = result; updated = Date.now();
-        } catch (e) {error = e;}
-        var callbacks = waiting; waiting = null;
-        callbacks.forEach(function (callback) {callback(error, result);});
+    function readList(method, key, complete) {
+      execute('/usr/bin/luna-send', ['-n', '1', '-w', '2600', 'luna://com.webos.applicationManager/' + method, '{}'],
+        {timeout: 3000, maxBuffer: 2 * 1024 * 1024}, function (error, stdout) {
+          var entries = [];
+          try {
+            var data = !error && JSON.parse(stdout);
+            if (data && data.returnValue === true && Array.isArray(data[key])) {
+              entries = data[key].slice(0, 512).filter(usablePoint);
+            }
+          } catch (e) {}
+          complete(entries);
+        });
+    }
+    readList('listLaunchPoints', 'launchPoints', function (points) {
+      if (points.length) {finish(points, 'launch-points'); return;}
+      readList('listApps', 'apps', function (apps) {
+        if (apps.length) {finish(apps, 'installed-apps'); return;}
+        finish(installedManifests(), 'app-manifests');
       });
+    });
+    function finish(entries, method) {
+      var result, error;
+      try {
+        if (!entries.length) throw new Error('Application list unavailable');
+        var known = Object.create(null), seen = Object.create(null);
+        var points = entries.filter(function (point) {
+          if (seen[point.id]) return false;
+          seen[point.id] = true; return true;
+        }).map(function (point) {
+          var choices = [], used = Object.create(null);
+          [['mediumLargeIcon', 'icon'], ['largeIcon', 'icon'], ['icon', 'icon'],
+            ['bgImage', 'banner'], ['mediumIcon', 'icon'], ['favicon', 'icon'], ['imageForRecents', 'banner']].forEach(function (field) {
+            var value = point[field[0]], rank = typeof value === 'string' ? score(value, field[1], 'launch') : -1;
+            if (rank < 0) return;
+            var candidate = image(point.id, value, field[1], known);
+            if (candidate && !used[candidate.src]) {candidate._priority = rank; choices.push(candidate); used[candidate.src] = true;}
+          });
+
+          if (Array.isArray(point.bgImages)) point.bgImages.slice(0, 3).forEach(function (value) {
+            var rank = score(value, 'banner', 'launch');
+            if (rank < 0) return;
+            var candidate = image(point.id, value, 'banner', known);
+            if (candidate && !used[candidate.src]) {candidate._priority = rank; choices.push(candidate); used[candidate.src] = true;}
+          });
+          var extra = installedArtwork(point.id, known);
+          extra.choices.forEach(function (candidate) {
+            if (!used[candidate.src]) {choices.push(candidate); used[candidate.src] = true;}
+          });
+          choices.sort(function (a, b) {return b._priority - a._priority;});
+          return {id: point.id, title: String(point.title || point.id).slice(0, 80),
+            bgColor: /^#[0-9a-f]{6}$/i.test(point.bgColor) ? point.bgColor : extra.bgColor || '#eef0f2',
+            _candidates: choices};
+        });
+
+        var repeats = Object.create(null), users = Object.create(null);
+        points.forEach(function (point) {
+          point._candidates.forEach(function (candidate) {
+            var token = candidate.src.split('/').pop(), sig = known[token] && known[token].signature;
+            if (!sig) return;
+            if (!users[sig]) users[sig] = Object.create(null);
+            users[sig][point.id] = true;
+          });
+        });
+        Object.keys(users).forEach(function (sig) {repeats[sig] = Object.keys(users[sig]).length;});
+        points.forEach(function (point) {
+          point.images = point._candidates.filter(function (candidate) {
+            var token = candidate.src.split('/').pop(), item = known[token];
+            if (item && item.signature && repeats[item.signature] >= 3) return false;
+
+            if (candidate.kind === 'banner' && candidate._priority <= 25 &&
+                point._candidates.some(function (other) {return other.kind === 'icon';})) return false;
+            return true;
+          }).slice(0, 8).map(function (candidate) {var token = candidate.src.split('/').pop(), item = known[token];
+              var icon = '';
+              if (candidate.kind === 'icon' && item && item.path && item.type === 'image/png') {
+                if (item.background === undefined) item.background = pngIconBackground(item.path);
+                icon = item.background;
+              }
+              return {src: candidate.src, kind: candidate.kind, recommended: candidate._priority > 25, background: icon};});
+          delete point._candidates;
+        });
+        result = {returnValue: true, launchPoints: points, source: 'local', method: method, helperFingerprint: HELPER_FINGERPRINT};
+        images = known; cached = result; updated = Date.now();
+      } catch (e) {error = e;}
+      var callbacks = waiting; waiting = null;
+      callbacks.forEach(function (callback) {callback(error, result);});
+    }
   }
   function imageType(data) {
     return data.slice(0, 8).toString('hex') === '89504e470d0a1a0a' ? 'image/png' :
