@@ -1,14 +1,14 @@
 {
   "id": "com.wiios.launcher",
-  "version": "0.3.41",
+  "version": "0.3.42",
   "type": "web",
   "title": "WiiOS",
   "appDescription": "A customizable channel launcher for LG webOS TVs.",
-  "iconUri": "https://raw.githubusercontent.com/KaykCaputo/WiiOS-webOS/67984b616f4c1c1e06fbc36a8e64480aa0952f38/icon.png",
+  "iconUri": "https://raw.githubusercontent.com/KaykCaputo/WiiOS-webOS/a86a895483348fb2329a7a1d48b6f1c8a00f26a5/icon.png",
   "sourceUrl": "https://github.com/KaykCaputo/WiiOS-webOS",
   "rootRequired": false,
-  "ipkUrl": "com.wiios.launcher_0.3.41_home_chooser_all.ipk",
+  "ipkUrl": "com.wiios.launcher_0.3.42_all.ipk",
   "ipkHash": {
-    "sha256": "b2e5b11ac4d43b5d8ce54695ad576cf4c0dcdf46a330f9c3716465d357f91554"
+    "sha256": "1c3aac04badf5fcfcd271bfa572db0732639d8370f2bf7ecbe28b5f9cf92e3ed"
   }
 }
