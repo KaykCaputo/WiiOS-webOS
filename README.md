@@ -32,26 +32,33 @@ python3 ./wiios-installer.pyz tui --text-mode \
 4. If prompted, verify the TV's SSH host fingerprint before approving it. Use your configured SSH username and port if they differ from the example.
 5. Choose **Install WiiOS as an Application** or **Update WiiOS**. Confirm with `y`, then choose **Launch WiiOS** or open it from the TV's app list.
 
+On a rooted TV, use `--transport root-ssh --user root --port 22` with the same IPK and your configured SSH settings. The installer starts the bundled TV helper for app discovery, artwork, and system stats when the TV supports it.
+
 ## Install from Homebrew Channel
 
 The catalog listing is pending. Once it is available, open [Homebrew Channel](https://repo.webosbrew.org/) on the TV, look for **WiiOS** under **Launchers**, select **Install**, then open WiiOS from the TV's app list. Until then, use the IPK steps above.
 
 ## Set WiiOS as Home with Home Chooser
 
-The standard Home Chooser package makes WiiOS available for Home selection and uses WiiOS app discovery.
-
-If app discovery is restricted on a rooted TV, open Home Chooser once to finish setup, then build WiiOS with `python3 scripts/build.py --home-chooser-api`. Install the IPK from `dist/home-chooser-api/`. This optional package can read the app catalog and icons through Home Chooser even when WiiOS runs as a regular app. On webOS 11 and newer, use Homebrew Channel 0.8.0 or later.
-
 1. On a rooted LG TV, restore LG Home and disable any existing Home remaps. Install [Home Chooser](https://repo.webosbrew.org/apps/org.webosbrew.homechooser/) from Homebrew Channel and open it once to finish setup.
-2. Install the WiiOS IPK from `wiios-home-chooser.zip` if your release provides it. To build it locally, run `python3 scripts/build.py --home-chooser` and install the IPK from `dist/home-chooser/` with webOS Dev Manager.
-3. In WiiOS, open **Wii Options → Use WiiOS as Home** and confirm in Home Chooser. Press **Home** on the remote to try it.
-4. To restore LG Home, open Home Chooser and select the LG Home option you originally used.
+2. Install the same WiiOS IPK used for the regular app. Open **Wii Options → Use WiiOS as Home** and confirm in Home Chooser.
+3. Press **Home** on the remote to try it. To restore LG Home, open Home Chooser and select the LG Home option you originally used.
 
-Both IPKs use the same app ID. Keep using the Home Chooser variant for updates. Home Chooser documents webOS 4 through 12, with Homebrew Channel 0.8.0 or later required on webOS 11 and newer. WiiOS still needs hardware validation for this integration, including startup and recovery.
+Home Chooser requires Homebrew Channel 0.8.0 or later on webOS 11 and newer. WiiOS still needs hardware validation for startup and recovery through this integration.
 
 For the device-specific QML integration, see the [observed compatibility and recovery notes](compatibility/profiles/observed/README.md).
 
-CPU, RAM, and temperature require the optional WiiOS metrics helper. The WiiOS IPK measures interface FPS locally.
+## Restore App Discovery and Artwork
+
+Open **Wii Options → App Library → Refresh Library**. Select an app to assign it to a channel or use **Add Missing Apps to Empty Channels**. WiiOS checks the TV helper and available app listing APIs, including Home Chooser when its catalog permission is available. If Luna is restricted, try **Wii Options → TV Pairing for App Catalog** and confirm the pairing on the TV. Previously discovered apps stay available during service outages.
+
+After a direct IPK or Homebrew Channel installation, run this from a computer with authorized root SSH to activate the bundled helper:
+
+```sh
+python3 ./wiios-installer.pyz helper install --host TV_IP --transport root-ssh --user root --port 22
+```
+
+The helper supplies CPU, RAM, and temperature when available. WiiOS measures FPS locally.
 
 ## Build
 
@@ -61,9 +68,9 @@ npm test
 python3 scripts/build.py
 ```
 
-The build refreshes the IPKs, installer, and checksums in `release/`. Use the package for your installation method from that directory.
+The build refreshes the IPK, installer, and checksums in `release/`.
 
-GitHub Actions publishes the standard IPK, the WiiOS Installer, the Home Chooser IPK and ZIP, and the Homebrew Channel manifest. The catalog listing is reviewed separately by the Homebrew Channel maintainers.
+GitHub Actions publishes one IPK, the WiiOS Installer, checksums, and the Homebrew Channel manifest. The catalog listing is reviewed separately by the Homebrew Channel maintainers.
 
 ## License
 
