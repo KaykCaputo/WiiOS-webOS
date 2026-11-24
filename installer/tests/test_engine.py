@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from compatibility.tests.fixtures import profile
 from installer.application import Artifact
@@ -46,6 +46,34 @@ class EngineTests(unittest.TestCase):
         self.assertIsNone(plan['adapter'])
         self.engine.apply(plan, plan['approvalDigest'])
         self.assertEqual([call[0] for call in self.application.mock_calls], ['install'])
+        self.assertEqual(self.engine.journal.read(plan['transactionId'])['state'], 'COMMITTED')
+
+    @patch('installer.helper.install_helper')
+    def test_root_install_activates_helper_after_install(self, install_helper):
+        self.device['transport'].update(kind='root-ssh', root=True)
+        self.engine.transport.kind = 'root-ssh'
+        plan = self.engine.plan(mode='app')
+        self.assertIn('activate-tv-helper-if-supported', [item['action'] for item in plan['operations']])
+
+        def helper(transport):
+            self.application.install.assert_called_once()
+            self.assertEqual(self.engine.journal.read(plan['transactionId'])['state'], 'COMMITTED')
+            return {'state': 'installed'}
+
+        install_helper.side_effect = helper
+        result = self.engine.apply(plan, plan['approvalDigest'])
+        self.assertEqual(result['tvHelper']['state'], 'installed')
+        install_helper.assert_called_once_with(self.engine.transport)
+
+    @patch('installer.helper.install_helper')
+    def test_root_helper_failure_keeps_successful_app_update(self, install_helper):
+        self.device['transport'].update(kind='root-ssh', root=True)
+        self.engine.transport.kind = 'root-ssh'
+        install_helper.side_effect = InstallerError('HELPER_NOT_OWNED', 'Helper conflict.')
+        plan = self.engine.plan(mode='app', action='update')
+        result = self.engine.apply(plan, plan['approvalDigest'])
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['tvHelper'], {'state': 'skipped', 'reasonCode': 'HELPER_NOT_OWNED'})
         self.assertEqual(self.engine.journal.read(plan['transactionId'])['state'], 'COMMITTED')
 
     def test_ht20_tui_uses_identical_engine_plan_and_approval(self):

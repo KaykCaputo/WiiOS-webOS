@@ -287,7 +287,7 @@ class InstallEngine:
                     plan['action'] == 'update' and not self._update_payload_matches(previous)):
                 raise InstallerError('COMMITTED_VERSION_CHANGED',
                     'The recorded installation differs from the installed application.', 8)
-            return dict(previous['result'], transactionId=plan['transactionId'], alreadyApplied=True)
+            return self._with_tv_helper(dict(previous['result'], transactionId=plan['transactionId'], alreadyApplied=True))
         transaction = {'schemaVersion': 1, 'transactionId': plan['transactionId'], 'plan': plan,
                        'deviceProfileDigest': profile_digest(current), 'endpoint': self.transport.connection.endpoint,
                        'state': 'PLAN_APPROVED', 'events': []}
@@ -304,11 +304,21 @@ class InstallEngine:
                 result = self.application.install(self.artifact, plan['transactionId'])
             transaction.update(state='COMMITTED', result=result)
             self.journal.save(transaction)
-            return dict(result, transactionId=plan['transactionId'])
         except (Exception, KeyboardInterrupt):
             transaction['state'] = 'RECONCILE_REQUIRED'
             self.journal.save(transaction)
             raise
+        return self._with_tv_helper(dict(result, transactionId=plan['transactionId']))
+
+    def _with_tv_helper(self, result):
+        if result.get('ok') and self.transport.kind == 'root-ssh':
+            from installer.helper import install_helper
+            try:
+                result['tvHelper'] = install_helper(self.transport)
+            except (InstallerError, OSError, ValueError, RuntimeError) as error:
+                reason = error.code if isinstance(error, InstallerError) else 'HELPER_ACTIVATION_FAILED'
+                result['tvHelper'] = {'state': 'skipped', 'reasonCode': reason}
+        return result
 
     def _update_payload_matches(self, transaction):
         checksums = transaction.get('payloadChecksums')

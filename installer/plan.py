@@ -34,6 +34,8 @@ def app_plan(profile, artifact, action='install', update_nonce=None):
         'version': artifact.version, 'operations': [{'action': action + '-ipk', 'target': 'com.wiios.launcher'}],
         'reverseOperations': [], 'expectedMounts': [], 'expectedHomeManifestDigest': None,
         'trialTimeoutSeconds': 0, 'requiresRoot': False, 'requiresInteractiveApproval': False, 'profileId': None}
+    if action in ('install', 'update') and profile['transport']['kind'] == 'root-ssh':
+        plan['operations'].append({'action': 'activate-tv-helper-if-supported', 'target': 'wiios-metrics'})
     if update_nonce is not None and action == 'update':
         plan['updateNonce'] = update_nonce
     return seal_plan(plan)

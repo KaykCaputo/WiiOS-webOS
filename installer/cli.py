@@ -63,6 +63,9 @@ def parser():
             command.add_argument('--transaction', required=True)
         if name == 'trust':
             command.add_argument('--fingerprint', required=True)
+    helper = commands.add_parser('helper', help='Manage the bundled WiiOS TV helper').add_subparsers(dest='helper_command', required=True)
+    for action in ('install', 'remove'):
+        helper.add_parser(action, parents=[connection])
     home = commands.add_parser('home').add_subparsers(dest='home_command', required=True)
     home.add_parser('status', parents=[connection])
     home.add_parser('audit-legacy-recovery', parents=[connection], help='Read-only verification of existing legacy QML rollback readiness')
@@ -132,6 +135,9 @@ def dispatch(args, engine):
         if plan['mode'] == 'home-replacement' and not args.approve_plan:
             raise InstallerError('APPROVAL_REQUIRED', 'Home replacement requires approval of the exact plan.', 8)
         return engine.apply(plan, args.approve_plan or plan['approvalDigest'])
+    if args.command == 'helper':
+        from installer.helper import install_helper
+        return install_helper(engine.transport, remove=args.helper_command == 'remove')
     if args.command == 'reconcile':
         return engine.reconcile_transaction(args.transaction)
     if args.command == 'uninstall':
